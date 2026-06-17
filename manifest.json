@@ -1,0 +1,38 @@
+{
+  "name": "netzmenu extention",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "description": "Chrome",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://menu.edu-netz.com/*",
+        "https://menu2.edu-netz.com/*",
+        "https://portal.edu-netz.com/*"
+      ],
+      "css": [],
+      "js": [
+        "libraries/jquery-3.4.1.min.js",
+        "scripts/pageScript.js",
+        "scripts/functions.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "content_security_policy": {
+        "extension_pages": " script-src 'self' allow-scripts; script-src 'self' 'unsafe-eval'; object-src 'self' 'unsafe-eval';",
+        "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval';"
+      },
+      "background": {
+        "service_worker": "background.js"
+      },
+      "permissions": [
+        "notifications",
+        "tabs",
+        "nativeMessaging",
+        "contextMenus",
+        "downloads",
+        "input"
+      ]
+    }
+  ]
+}
