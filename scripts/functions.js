@@ -35,46 +35,56 @@ FUNCTION.yotei2_codelist = {
    * 専門部会のリスト（セレクトボックス）を生成して画面に配置する
    */
   appendDropdown: function() {
-    // 1. コード指定の枠（textarea）と、配置先となる親のセル（td）を取得
     const $inputField = $('textarea[name="select_cd"]');
     const $targetCell = $('td[colspan="175"]');
     
-    // 安全策：どちらかの要素が画面に存在しなければ処理をスキップ
     if ($inputField.length === 0 || $targetCell.length === 0) return;
 
-    // 2. セレクトボックス（<select>）要素を生成
+    // システムのCSS（.FlexTextarea2__textarea）に合わせたデザイン設計
     const $select = $('<select>', {
       id: 'custom-code-list',
       css: {
-        'padding': '3px',
-        'margin-left': '15px',      // オレンジのインプットから少し離す
-        'font-size': '12px',
-        'border': '2px solid #ff6600', // わかりやすいように枠線をオレンジに
-        'border-radius': '4px',
+        'padding': '4px 8px',
+        'margin-left': '15px',
+        'font-family': '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif',
+        'font-size': '0.8rem',           // システムの文字サイズと同化
+        'line-height': '1.8',
+        'color': 'inherit',
+        'border': '1px solid #b6c3c6',   // システムと全く同じ枠線の色に変更
+        'border-radius': '4px',          // システムと同じ角丸
+        'background-color': '#ffffff',
         'vertical-align': 'middle',
-        'cursor': 'pointer'
+        'cursor': 'pointer',
+        'transition': 'box-shadow 0.2s ease' // フォーカス時のアニメーション
       }
     });
 
-    // 3. 選択肢（<option>）を追加
+    // フォーカスしたときにシステム同様に綺麗に光るエフェクトを追加
+    $select.on('focus', function() {
+      $(this).css('box-shadow', '0 0 0 4px rgba(35, 167, 195, 0.3)');
+      $(this).css('outline', '0');
+    }).on('blur', function() {
+      $(this).css('box-shadow', 'none');
+    });
+
+    // 選択肢の追加
     $select.append($('<option>', { value: '', text: '-- 専門コード一括入力 --' }));
     $select.append($('<option>', {
-      value: '000360,000161,000325,000015,000387,000249', // カンマ区切りのコード
+      value: '000360,000161,000325,000015,000387,000249',
       text: '専門部会'
     }));
 
-    // 4. リストが選ばれた時の自動入力挙動を設定
+    // 自動入力の挙動
     $select.on('change', function() {
       const selectedCodes = $(this).val();
       if (selectedCodes) {
         $inputField.val(selectedCodes);
-        $inputField.trigger('change'); // システム側の既存スクリプトへの変更通知
+        $inputField.trigger('change');
       } else {
         $inputField.val('');
       }
     });
 
-    // 5. セル（td）の中の一番最後に追加して画面に表示させる
     $targetCell.append($select);
   }
 };
