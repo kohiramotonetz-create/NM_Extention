@@ -25,6 +25,11 @@ $(function () {
         .removeAttr('scrolling')
         .removeAttr('noresize');
       break;
+    case '/netz/netz1/schedule/yotei2.aspx':
+      console.log('yotei2_Running');
+      // 子コンポーネントを実行（内部で td[colspan="175"] を探して自動で埋め込みます）
+      FUNCTION.yotei2_codelist.appendDropdown();
+      break;
 
     // ------------ ページ別機能の実装 ------------
 
