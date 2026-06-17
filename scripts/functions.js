@@ -84,6 +84,8 @@ FUNCTION.yotei2_codelist = {
         $inputField.val('');
       }
     });
+    // ★【ここに追記】2枚目の写真のサイズ(69.26px)を持つ、元からあるオレンジ枠の要素を非表示にする
+    $('input[style*="69.26"], input[style*="25.6"]').hide();
 
     $targetCell.append($select);
   }
