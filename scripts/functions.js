@@ -40,26 +40,26 @@ FUNCTION.yotei2_codelist = {
     
     if ($inputField.length === 0 || $targetCell.length === 0) return;
 
-    // システムのCSS（.FlexTextarea2__textarea）に合わせたデザイン設計
+    // オレンジを完全に排除し、システムに同化させるデザイン
     const $select = $('<select>', {
       id: 'custom-code-list',
       css: {
         'padding': '4px 8px',
         'margin-left': '15px',
         'font-family': '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif',
-        'font-size': '0.8rem',           // システムの文字サイズと同化
+        'font-size': '0.8rem',
         'line-height': '1.8',
         'color': 'inherit',
-        'border': '1px solid #b6c3c6',   // システムと全く同じ枠線の色に変更
-        'border-radius': '4px',          // システムと同じ角丸
+        'border': '1px solid #b6c3c6',   // ★ここを1pxの薄いグレーに確定
+        'border-radius': '4px',
         'background-color': '#ffffff',
         'vertical-align': 'middle',
         'cursor': 'pointer',
-        'transition': 'box-shadow 0.2s ease' // フォーカス時のアニメーション
+        'transition': 'box-shadow 0.2s ease'
       }
     });
 
-    // フォーカスしたときにシステム同様に綺麗に光るエフェクトを追加
+    // フォーカス時の青い光のエフェクト
     $select.on('focus', function() {
       $(this).css('box-shadow', '0 0 0 4px rgba(35, 167, 195, 0.3)');
       $(this).css('outline', '0');
