@@ -25,12 +25,18 @@ $(function () {
         .removeAttr('scrolling')
         .removeAttr('noresize');
       break;
+    case '/toiawase_list.aspx':
+      //なぜかスクロール禁止なので許可
+      $('frame[name=teacher_toroku_list_head]')
+        .removeAttr('scrolling')
+        .removeAttr('noresize');
+      break;
     case '/netz/netz1/schedule/yotei2.aspx':
       console.log('yotei2_Running');
       // 子コンポーネントを実行（内部で td[colspan="175"] を探して自動で埋め込みます）
       FUNCTION.yotei2_codelist.appendDropdown();
       break;
-   case '/netz/netz1/student_list.aspx':
+    case '/netz/netz1/student_list_head.aspx':
       console.log('student_list_Running');
       FUNCTION.student_list_gakunen.appendDropdown();
       break;
