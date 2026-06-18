@@ -30,6 +30,10 @@ $(function () {
       // 子コンポーネントを実行（内部で td[colspan="175"] を探して自動で埋め込みます）
       FUNCTION.yotei2_codelist.appendDropdown();
       break;
+   case '/netz/netz1/student_list.aspx':
+      console.log('student_list_Running');
+      FUNCTION.student_list_gakunen.appendDropdown();
+      break;
 
     // ------------ ページ別機能の実装 ------------
 
