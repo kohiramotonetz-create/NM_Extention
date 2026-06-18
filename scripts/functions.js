@@ -76,7 +76,7 @@ FUNCTION.yotei2_codelist = {
     // セレクトボックスを生成し、共通スタイルを上から一括適用！
     const $select = $('<select>', {
       id: 'custom-code-list',
-      css: FUNCTION.styles.systemButton // ★共通管理から読み込み
+      css: FUNCTION.styles.systemButton ,// ★共通管理から読み込み
     });
 
     // 選択肢の追加
@@ -111,15 +111,19 @@ FUNCTION.student_list_gakunen = {
    * 学年の一括選択リスト（セレクトボックス）を生成して画面に配置する
    */
   appendDropdown: function() {
-    // 1. システム側の要素を正確に取得
+    // 1. システム側の要素を取得
     const $gakunenSelect = $('select[name="gakunen_cb"]');
     const $targetButton = $('input[value="複数生徒番号指定画面"]');
     const $searchForm = $('form').first();
 
+    const $shokiSelect = $('select[name="shoki_disp_cb"], select[name="initial_disp_cb"], select').filter(function() {
+      return $(this).text().indexOf('メール・アプリ送信') !== -1;
+    }).first();
+
     if ($gakunenSelect.length === 0 || $targetButton.length === 0 || $searchForm.length === 0) return;
     if ($('#custom-gakunen-group').length > 0) return;
 
-    // 2. セレクトボックス要素を生成
+    // 2. セレクトボックス要素を生成（共通デザインを同期）
     const $select = $('<select>', {
       id: 'custom-gakunen-group',
       css: FUNCTION.styles.systemButton
@@ -129,7 +133,7 @@ FUNCTION.student_list_gakunen = {
     $select.append($('<option>', { value: '10,21,22,31,32', text: '非受験生' }));
     $select.append($('<option>', { value: '23,33,38', text: '受験生' }));
 
-    // 3. リスト変更時の連動挙動（ピュア明細行結合アプローチ）
+    // 3. リスト変更時の連動挙動（美しいテーブルの合体・描画ロジック）
     $select.on('change', async function() {
       const groupValue = $(this).val();
       if (!groupValue) return;
@@ -137,24 +141,15 @@ FUNCTION.student_list_gakunen = {
       const codesToSelect = groupValue.split(',');
       const bodyWindow = parent.student_list_body;
       if (!bodyWindow) {
-        alert("結果表示画面（フレーム）が見つかりません。一度『表示』ボタンで通常検索を行ってください。");
+        alert("結果表示画面（フレーム）が見つかりません。");
         return;
       }
 
-      const bodyDoc = bodyWindow.document;
-      
-      // 元の画面（結果フレーム側）にある生徒データテーブルを正確に取得
-      const $baseTable = $(bodyDoc).find('table').first();
-      if ($baseTable.length === 0) {
-        alert("ベースとなる生徒一覧テーブルが見つかりません。一度「表示」ボタンで通常検索を行ってください。");
-        return;
-      }
+      // ローディング表示
+      $(bodyWindow.document.body).html('<div style="padding:20px; font-size:14px; color:#666;">学年グループデータを一括取得中... お待ちください...</div>');
 
-      // 画面上の既存の明細データ行（2行目以降）を一度きれいに全消去
-      // 1行目の見出し（CHチェックボックス等があるヘッダー）だけを残します
-      $baseTable.find('tr').not(':first').remove();
-
-      // 現在ヘッダーフォームに入力されている他の検索条件を取得
+      let combinedRows = [];
+      let tableHeader = '';
       const baseFormData = $searchForm.serializeArray();
 
       // 各学年コードごとに裏側で非同期通信（POST）を実行
@@ -167,17 +162,15 @@ FUNCTION.student_list_gakunen = {
         });
 
         try {
-          // 裏側でPOSTリクエストを送信
           const responseHtml = await $.post($searchForm.attr('action') || location.href, postData);
-          
-          // 返ってきたHTMLから、フォームの中にあるテーブルのデータ行（tr）だけを特定
-          const $incomingRows = $(responseHtml).find('form table tr');
+          const $responseDoc = $(responseHtml);
+          const $rows = $responseDoc.find('table tr'); 
 
-          $incomingRows.each(function(index) {
-            // 返ってきたデータの1行目（重複する見出し行）は不要なのでスキップし、
-            // 2行目以降の純粋な「生徒データ行」だけを既存のテーブルに安全に追加結合
-            if (index > 0) {
-              $baseTable.append($(this).prop('outerHTML'));
+          $rows.each(function(index) {
+            if (index === 0 && !tableHeader) {
+              tableHeader = $(this).prop('outerHTML');
+            } else if (index > 0) {
+              combinedRows.push($(this).prop('outerHTML'));
             }
           });
         } catch (error) {
@@ -185,47 +178,50 @@ FUNCTION.student_list_gakunen = {
         }
       }
 
-      // 4. 下部凡例とカスタムボタンの制御（既存の純正ボタンを絶対に壊さないように変更）
-      const $systemMailBtn = $(bodyDoc).find('input[onclick*="mail_send"]');
-      const $systemTalkBtn = $(bodyDoc).find('input[onclick*="multipletalk"]');
+      // 4. 描画処理（完璧だった黒線テーブルレイアウトを再現）
+      if (combinedRows.length > 0) {
+        // 黒枠線を明示的に指定したカスタムテーブルHTML
+        const newTableHtml = `
+          <table border="1" cellpadding="3" cellspacing="0" bordercolor="#111111" style="width:100%; border-collapse:collapse; font-size:9pt; color:#111111;">
+            ${tableHeader}
+            ${combinedRows.join('')}
+          </table>
+        `;
 
-      // 以前のカスタムラッパーが残っていればクリア
-      $(bodyDoc).find('.custom-legend-text, #custom-action-wrapper').remove();
+        // 凡例テキスト
+        let footerHtml = `
+          <hr style="border:0; border-top:1px solid #999; margin:15px 0 10px 0;">
+          <div class="small">兄：兄弟有無 ◎：１人目 ●：２人目以降 ※赤字：稼働中生徒が２人以上</div>
+          <div id="custom-action-buttons" style="margin-top:10px;"></div>
+        `;
 
-      if ($systemMailBtn.length > 0) {
-        // 1. 純正のグレーのボタンの直前に、指定の凡例テキストを挿入
-        $systemMailBtn.first().before('<div class="small custom-legend-text" style="margin-bottom:10px; margin-top:15px;">兄：兄弟有無 ◎：１人目 ●：２人目以降 ※赤字：稼働中生徒が２人以上</div>');
-        
-        // 2. 純正ボタンを非表示（hide）にする
-        $systemMailBtn.hide();
-        $systemTalkBtn.hide();
+        // テーブルと凡例を流し込む
+        $(bodyWindow.document.body).html(newTableHtml + footerHtml);
 
-        // 3. 一括管理デザイン（システムボタン）を適用したラッパーと新しいボタンを生成
-        const $btnWrapper = $('<div>', { id: 'custom-action-wrapper', css: { 'margin-top': '10px' } });
+        // 「初期表示」が『メール・アプリ送信』の場合、ハリボテボタン一式を配置
+        if ($shokiSelect.val() === "メール・アプリ送信" || $shokiSelect.find('option:selected').text().indexOf('メール・アプリ送信') !== -1) {
+          // 1. メールボタンを生成
+          const $btnMail = $('<input>', {
+            type: 'button',
+            value: 'メール作成画面を開く',
+            css: FUNCTION.styles.systemButton
+          });
 
-        $('<input>', {
-          type: 'button',
-          value: 'メール作成画面を開く',
-          css: FUNCTION.styles.systemButton,
-          style: 'margin-left: 0px;'
-        }).on('click', function() {
-          // ★関数を直接呼ばず、HTML内に元から安全にバインドされている純正ボタンを拡張機能が背後からクリック！
-          $systemMailBtn.trigger('click'); 
-        }).appendTo($btnWrapper);
-
-        if ($systemTalkBtn.length > 0) {
-          $('<input>', {
+          // 2. トークボタンを生成（競合を防ぐため別々で完結させます）
+          const $btnTalk = $('<input>', {
             type: 'button',
             value: 'トーク一斉発信(生徒)',
-            css: FUNCTION.styles.systemButton,
-            style: 'margin-left: 10px;'
-          }).on('click', function() {
-            $systemTalkBtn.trigger('click'); // ★裏の純正トークボタンを代わりにクリック！
-          }).appendTo($btnWrapper);
-        }
+            css: FUNCTION.styles.systemButton
+          });
 
-        // 新しい美しいボタン一式を表示
-        $systemMailBtn.first().before($btnWrapper);
+          // 3. 【修正確定】安全に横並びの余白（マージン）をあける
+          $btnTalk.css('margin-left', '10px');
+
+          // ボタンを配置
+          $(bodyWindow.document).find('#custom-action-buttons').append($btnMail).append($btnTalk);
+        }
+      } else {
+        $(bodyWindow.document.body).html('<div style="padding:20px; font-size:14px; color:red;">該当する生徒が見つかりませんでした。</div>');
       }
 
       // 選択状態をリセット
