@@ -76,7 +76,7 @@ FUNCTION.yotei2_codelist = {
     // セレクトボックスを生成し、共通スタイルを上から一括適用！
     const $select = $('<select>', {
       id: 'custom-code-list',
-      css: FUNCTION.styles.systemButton ,// ★共通管理から読み込み
+      css: FUNCTION.styles.systemButton // ★共通管理から読み込み
     });
 
     // 選択肢の追加
@@ -102,6 +102,97 @@ FUNCTION.yotei2_codelist = {
 
     // 画面に埋め込み
     $targetCell.append($select);
+  }
+};
+
+// ===================================================
+// 学年グループフィルター
+// ====================================================
+
+FUNCTION.studentList_filter = {
+  // 学年マッピング
+  groups: {
+    'non-受験生': ['小１', '小２', '小３', '小４', '小５', '小５', '小６', '一貫中１', '一貫中２', '一貫中３', '中１', '中２', '高１', '高２'],
+    '受験生': ['受験小１', '受験小２', '受験小３', '受験小４', '受験小５', '受験小６', '中３', '高３', '大学受験']
+  },
+
+  appendFilterDropdown: function() {
+    // 既にフィルターが設置されている場合は重複しないようにスキップ
+    if ($('#custom-gakunen-group-filter').length > 0) return;
+
+    // 「複数生徒番号指定画面」ボタンを確実にターゲットにする
+    const $btn = $('input[value="複数生徒番号指定画面"]');
+    if ($btn.length === 0) return;
+
+    // ボタンの隣にあるチェックボックスの「label要素」を特定する
+    const $targetCheckbox = $btn.nextAll('label[for="row_vl"]').first();
+    if ($targetCheckbox.length === 0) return;
+
+    // クイックフィルター用のセレクトボックスを作成
+    const $groupSelect = $('<select>', {
+      id: 'custom-gakunen-group-filter',
+      css: FUNCTION.styles.systemButton
+    });
+
+    // オプションの追加
+    $groupSelect.append($('<option>', { value: 'all', text: '-- 学年一括フィルター --' }));
+    $groupSelect.append($('<option>', { value: 'non-受験生', text: '非受験生 (小１～小６/一貫中１～３/中１～２/高１～２)' }));
+    $groupSelect.append($('<option>', { value: '受験生', text: '受験生 (受験小/中３/高３/大受)' }));
+
+    // フィルター処理のイベントバインド
+    $groupSelect.on('change', function() {
+      const selectedGroup = $(this).val();
+      
+      // 廊下（親画面：parent）を経由して、隣の部屋（下の表のフレーム）を覗き込む
+      const $bodyFrame = $(parent.document).find('frame[name="student_list_body"]').contents();
+      
+      // 表の見出し（theadのtr）から「学年」と書かれている列の順番（位置）を自動で探す
+      let gakunenIndex = -1;
+      $bodyFrame.find('table.small thead tr td').each(function(index) {
+        if ($.trim($(this).text()) === '学年') {
+          gakunenIndex = index;
+          return false; // 見つかったらループを抜ける
+        }
+      });
+
+      // もし「学年」という見出しが見つからなかった場合は安全のために処理を止める
+      if (gakunenIndex === -1) {
+        console.log('表の中に「学年」の列が見つかりません。');
+        return;
+      }
+
+      // 生徒の行（tbodyのtr）をすべて取得
+      const $rows = $bodyFrame.find('table.small tbody tr[id^="td"]');
+
+      if (selectedGroup === 'all') {
+        // すべて表示
+        $rows.show();
+      } else {
+        const allowedGakunen = FUNCTION.studentList_filter.groups[selectedGroup];
+        
+        $rows.each(function() {
+          const $row = $(this);
+          
+          // 先ほど自動判定した「学年」の列番目から正確に文字を読み取る
+          const rowGakunen = $.trim($row.find('td').eq(gakunenIndex).text());
+
+          // 判定して目隠し（非表示）を切り替える
+          if (allowedGakunen.includes(rowGakunen)) {
+            $row.show();
+          } else {
+            $row.hide();
+          }
+        });
+      }
+    });
+
+    // 「表示」ボタンが押されて再読み込みされた時にフィルターをリセット
+    $('input[name="b_submit"], input[name="b_submit2"]').on('click', function() {
+      $groupSelect.val('all');
+    });
+
+    // チェックボックスが入っているlabelのすぐ右隣にスペースを挟んで設置
+    $targetCheckbox.after($groupSelect).after(' ');
   }
 };
 

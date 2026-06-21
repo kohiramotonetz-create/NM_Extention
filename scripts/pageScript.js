@@ -36,7 +36,11 @@ $(function () {
       // 子コンポーネントを実行（内部で td[colspan="175"] を探して自動で埋め込みます）
       FUNCTION.yotei2_codelist.appendDropdown();
       break;
-    
+    case '/netz/netz1/student_list_head.aspx':
+      console.log('student_list_head_Running');
+      // 学年グループフィルターを設置
+      FUNCTION.studentList_filter.appendFilterDropdown();
+      break;
     // ------------ ページ別機能の実装 ------------
 
     case 'どこかのURL':
