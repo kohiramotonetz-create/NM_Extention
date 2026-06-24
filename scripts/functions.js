@@ -221,44 +221,47 @@ FUNCTION.takamatsuCustom = {
 };
 
 // ===================================================
-// TODOリストカスタム（右端へのチェックボックス列挿入）
+// TODOリストカスタム（右端へのチェックボックス列挿入 ＆ 完全オリジナル右クリックメニュー）
 // ===================================================
 FUNCTION.todoList_custom = {
+  checkedIds: [],
+
   appendCheckboxColumn: function() {
-    // ターゲットとなるテーブルを取得
+    const _this = this;
     const $table = $('table.tbl');
     if ($table.length === 0) return;
 
-    // 1. ヘッダー行（一番上のタイトル行）の右端に空の列を追加
-    $table.find('tbody tr').first().append($('<td>'));
+    _this.checkedIds = [];
 
-    // 2. 通常のタスク行（idが "td" から始まる行）の右端にチェックボックスを追加
+    // 1. ヘッダー行の右端に列を追加
+    if ($table.find('tbody tr').first().find('.custom-header-cell').length === 0) {
+      $table.find('tbody tr').first().append($('<td>', { text: '選択', class: 'custom-header-cell', style: 'font-weight:bold; text-align:center;' }));
+    }
+
+    // 2. 通常のタスク行にチェックボックスを追加
     const $taskRows = $table.find('tbody tr[id^="td"]');
     $taskRows.each(function() {
       const $row = $(this);
-      
-      // 各行のユニークなID（例: 132412）を取得してチェックボックスのname等に利用
       const rowId = $row.attr('id').replace('td', '');
 
-      // 新しいtd要素とチェックボックスを作成
+      if ($row.find('.custom-todo-selector').length > 0) return;
+
       const $newTd = $('<td>', { style: 'text-align: center; vertical-align: middle;' });
       const $checkbox = $('<input>', {
         type: 'checkbox',
-        name: 'custom_todo_check[' + rowId + ']',
-        id: 'custom_todo_check_' + rowId,
-        css: { 'cursor': 'pointer', 'transform': 'scale(1.2)' } // 押しやすいように少し大きめに
+        class: 'custom-todo-selector',
+        data: { id: rowId },
+        css: { 'cursor': 'pointer', 'transform': 'scale(1.2)' }
       });
 
-      // ★ここを追加：チェックボックスが操作されたらバックグラウンドへ通知する
       $checkbox.on('change', function() {
+        const taskId = $(this).data('id');
         if ($(this).prop('checked')) {
-          const taskid = rowId; // タスクIDをセット
-          
-          chrome.runtime.sendMessage({
-            openTabBack: `https://menu.edu-netz.com/netz/netz1/todo/todo_input.aspx?setState=F&doSave=true&id=${taskid}`
-          }, (response) => {
-            console.log('Background response:', response);
-          });
+          if (!_this.checkedIds.includes(taskId)) {
+            _this.checkedIds.push(taskId);
+          }
+        } else {
+          _this.checkedIds = _this.checkedIds.filter(id => id !== taskId);
         }
       });
 
@@ -266,13 +269,95 @@ FUNCTION.todoList_custom = {
       $row.append($newTd);
     });
 
-    // 3. 【レイアウト崩れ対策】詳細行（idが "tr-todo" から始まる行）のcolspanを 10 から 11 に増やす
-    const $detailRows = $table.find('tbody tr[id^="tr-todo"]');
-    $detailRows.each(function() {
+    // 3. レイアウト崩れ対策
+    $table.find('tbody tr[id^="tr-todo"]').each(function() {
       const $td = $(this).find('td[colspan="10"]');
       if ($td.length > 0) {
         $td.attr('colspan', '11');
       }
+    });
+
+    // ★重要：テーブル内での右クリックでオリジナルメニューを表示する
+    $table.on('contextmenu', function(e) {
+      if (_this.checkedIds.length > 0) {
+        e.preventDefault(); // 標準メニューを絶対に出さない
+
+        // 既に古いメニューがあれば一旦消す
+        $('#custom-context-menu').remove();
+
+        // オリジナルメニューのHTML要素を作成（画像①に近いスタイリッシュなデザインに！）
+        const $menu = $('<div>', {
+          id: 'custom-context-menu',
+          css: {
+            'position': 'absolute',
+            'top': e.pageY + 'px',
+            'left': e.pageX + 'px',
+            'background-color': '#ffffff',
+            'border': '1px solid #cccccc',
+            'border-radius': '6px',
+            'box-shadow': '0 4px 12px rgba(0,0,0,0.15)',
+            'padding': '6px 0',
+            'z-index': '99999',
+            'min-width': '160px',
+            'font-family': '"Helvetica Neue", Arial, sans-serif',
+            'font-size': '10pt'
+          }
+        });
+
+        // メニューの選択肢（ボタン）を定義
+        const items = [
+          { text: '👤 担当者削除', action: 'delete_tanto' },
+          { text: '⚙️ 状態変更 (完了)', action: 'change_status' },
+          { text: '📈 進捗率変更 (100%)', action: 'change_progress' }
+        ];
+
+        // 各ボタンをメニューに追加
+        items.forEach(function(item) {
+          const $button = $('<div>', {
+            text: item.text,
+            css: {
+              'padding': '8px 14px',
+              'cursor': 'pointer',
+              'color': '#333333',
+              'transition': 'background 0.2s'
+            }
+          }).on('mouseenter', function() {
+            $(this).css('background-color', '#f0f4f9'); // ホバー時の色
+          }).on('mouseleave', function() {
+            $(this).css('background-color', 'transparent');
+          }).on('click', function() {
+            // ボタンが押されたらバックグラウンドへ人間のシミュレート指示を飛ばす（次回実装）
+            console.log(item.action + ' が押されました。対象タスク: ', _this.checkedIds);
+            
+            // ★形から連動：バックグラウンドへの通知（メッセージ）
+            chrome.runtime.sendMessage({
+              type: "EXECUTE_TODO_ACTION",
+              action: item.action,
+              taskIds: _this.checkedIds
+            });
+
+            $menu.remove(); // メニューを閉じる
+          });
+
+          $menu.append($button);
+        });
+
+        // 画面（body）に突っ込む
+        $('body').append($menu);
+      }
+    });
+
+    // 画面のどこかをクリックしたらメニューを閉じる
+    $(document).on('click.customMenuClose', function(e) {
+      if (!$(e.target).closest('#custom-context-menu').length) {
+        $('#custom-context-menu').remove();
+      }
+    });
+
+    // 一覧更新時リセット
+    $('input[onclick="formreload()"]').on('click', function() {
+      _this.checkedIds = [];
+      $('#custom-context-menu').remove();
     });
   }
 };
