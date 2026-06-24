@@ -197,40 +197,28 @@ FUNCTION.studentList_filter = {
 };
 
 // ===================================================
-// 担当校舎・高松Ｕカスタム（みらいミッテ栗林の紐付けと初期表示制御）
+// 担当校舎・高松Ｕカスタム（初期表示制御）
 // ====================================================
 FUNCTION.takamatsuCustom = {
   init: function() {
-    const $select = $('select[name="tenpo_cd"]');
-    if ($select.length === 0) return;
+    // 該当するセレクトボックスをすべて取得し、1つずつ個別に安全に処理する
+    $('select[name="tenpo_cd"], select[name="shop_cd"], select[name="tenpo"]').each(function() {
+      const $select = $(this);
 
-    // 1. 「高松Ｕ」のoptgroupを取得して「みらいミッテ栗林」を紐付け
-    const $optgroup = $select.find('optgroup[label="高松Ｕ"]');
-    if ($optgroup.length > 0) {
-      // すでにグループ内に「みらいミッテ栗林(8023)」が存在しないか確認
-      if ($optgroup.find('option[value="8023"]').length === 0) {
-        // 既存の「みらいミッテ栗林」を取得して、高松Ｕのoptgroupの末尾に移動・紐付け
-        const $mitteOption = $select.find('option[value="8023"]').first();
-        if ($mitteOption.length > 0) {
-          $optgroup.append($mitteOption);
-        } else {
-          // 万が一既存のoptionが見つからない場合は新規作成して追加
-          $optgroup.append($('<option>', { value: '8023', text: 'みらいミッテ栗林' }));
+      // セレクトボックスの中に「担当校舎(value="m")」が存在する場合（生徒一覧・問合せなど）
+      if ($select.find('option[value="m"]').length > 0) {
+        // まだ何も選択されていない、または初期状態の時に「担当校舎」を選択
+        if (!$select.val() || $select.val() === "" || $select.val() === "m") {
+          $select.val('m');
+        }
+      } else {
+        // 「担当校舎」という選択肢が無いセレクトボックス（日程選択型講座など）であり、
+        // かつ「高松Ｕ(b3701)」という選択肢を持っている場合のみ、高松Ｕに強制設定する
+        if ($select.find('option[value="b3701"]').length > 0) {
+          $select.val('b3701');
         }
       }
-    }
-
-    // 2. ページに応じた初期表示の制御（セーフティネット強化版）
-    // セレクトボックスの中に「担当校舎(value="m")」が存在する場合（生徒一覧など）
-    if ($select.find('option[value="m"]').length > 0) {
-      // まだ何も選択されていない、または初期状態の時に「担当校舎」を選択
-      if (!$select.val() || $select.val() === "" || $select.val() === "m") {
-        $select.val('m');
-      }
-    } else {
-      // 「担当校舎」という選択肢が無いページ（日程選択型講座など）は、強制的に高松Ｕ（b3701）を設定
-      $select.val('b3701');
-    }
+    });
   }
 };
 
