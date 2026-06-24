@@ -36,11 +36,22 @@ $(function () {
       // 子コンポーネントを実行（内部で td[colspan="175"] を探して自動で埋め込みます）
       FUNCTION.yotei2_codelist.appendDropdown();
       break;
-    case '/netz/netz1/student_list_head.aspx':
+    // ------------ 生徒一覧・講座一覧、共通でカスタムを動作させたい画面 ------------
+    case '/netz/netz1/student_list_head.aspx': // 生徒一覧ヘッド画面
       console.log('student_list_head_Running');
-      // 学年グループフィルターを設置
+      // 学年グループフィルターを設置（生徒一覧画面のみの専用処理）
       FUNCTION.studentList_filter.appendFilterDropdown();
+
+      // 【ポイント】ここに break; を書かないことで、
+      // 生徒一覧のときもそのまま自動的に下のカスタム共通処理へと流れて実行されます。
+
+    case '/netz/netz1/kouza_enshu_list.aspx': // 日程選択型講座一覧画面
+      console.log('takamatsuCustom_Running_at: ' + location.pathname);
+      // 【共通処理】みらいミッテ栗林の紐付け ＋ ページに合わせたデフォルト表示を実行
+      FUNCTION.takamatsuCustom.init();
       break;
+
+    
     // ------------ ページ別機能の実装 ------------
 
     case 'どこかのURL':

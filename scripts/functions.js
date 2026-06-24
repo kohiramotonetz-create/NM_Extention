@@ -196,6 +196,43 @@ FUNCTION.studentList_filter = {
   }
 };
 
+// ===================================================
+// 担当校舎・高松Ｕカスタム（みらいミッテ栗林の紐付けと初期表示制御）
+// ====================================================
+FUNCTION.takamatsuCustom = {
+  init: function() {
+    const $select = $('select[name="tenpo_cd"]');
+    if ($select.length === 0) return;
+
+    // 1. 「高松Ｕ」のoptgroupを取得して「みらいミッテ栗林」を紐付け
+    const $optgroup = $select.find('optgroup[label="高松Ｕ"]');
+    if ($optgroup.length > 0) {
+      // すでにグループ内に「みらいミッテ栗林(8023)」が存在しないか確認
+      if ($optgroup.find('option[value="8023"]').length === 0) {
+        // 既存の「みらいミッテ栗林」を取得して、高松Ｕのoptgroupの末尾に移動・紐付け
+        const $mitteOption = $select.find('option[value="8023"]').first();
+        if ($mitteOption.length > 0) {
+          $optgroup.append($mitteOption);
+        } else {
+          // 万が一既存のoptionが見つからない場合は新規作成して追加
+          $optgroup.append($('<option>', { value: '8023', text: 'みらいミッテ栗林' }));
+        }
+      }
+    }
+
+    // 2. 初期状態で何も選択されていない場合、ページに応じてデフォルト値を制御
+    if (!$select.val() || $select.val() === "") {
+      // セレクトボックスの中に「担当校舎(value="m")」が存在する場合（生徒一覧など）
+      if ($select.find('option[value="m"]').length > 0) {
+        $select.val('m');
+      } else {
+        // 「担当校舎」という選択肢が無い場合（日程選択型講座など）は、高松Ｕ（b3701）を設定
+        $select.val('b3701');
+      }
+    }
+  }
+};
+
 //以下はもう一つ globalFunction.jsとか別ファイルを作ってそっちにいれるほうがいいかな
 async function postData() {
   if (!endpoint) {
