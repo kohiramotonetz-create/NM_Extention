@@ -202,18 +202,16 @@ FUNCTION.studentList_filter = {
 FUNCTION.takamatsuCustom = {
   init: function() {
     // 該当するセレクトボックスをすべて取得し、1つずつ個別に安全に処理する
-    $('select[name="tenpo_cd"], select[name="shop_cd"], select[name="tenpo"]').each(function() {
+    $('select[name="tenpo_cd"], select[name="shop_cd"], select[name="tenpo"], select[name="main_tenpo_cd"]').each(function() {
       const $select = $(this);
 
-      // セレクトボックスの中に「担当校舎(value="m")」が存在する場合（生徒一覧・問合せなど）
+      // セレクトボックスの中に「担当校舎(value="m")」が存在する場合
       if ($select.find('option[value="m"]').length > 0) {
-        // まだ何も選択されていない、または初期状態の時に「担当校舎」を選択
-        if (!$select.val() || $select.val() === "" || $select.val() === "m") {
-          $select.val('m');
-        }
+        // 初期値が何であれ、担当校舎（m）に強制設定する
+        $select.val('m');
       } else {
-        // 「担当校舎」という選択肢が無いセレクトボックス（日程選択型講座など）であり、
-        // かつ「高松Ｕ(b3701)」という選択肢を持っている場合のみ、高松Ｕに強制設定する
+        // 「担当校舎」という選択肢が無いセレクトボックスであり、
+        // かつ「高松Ｕ(b3701)」という選択肢を持っている場合のみ、高松Ｕに設定する
         if ($select.find('option[value="b3701"]').length > 0) {
           $select.val('b3701');
         }
