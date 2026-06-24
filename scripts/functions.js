@@ -220,6 +220,50 @@ FUNCTION.takamatsuCustom = {
   }
 };
 
+// ===================================================
+// TODOリストカスタム（右端へのチェックボックス列挿入）
+// ===================================================
+FUNCTION.todoList_custom = {
+  appendCheckboxColumn: function() {
+    // ターゲットとなるテーブルを取得
+    const $table = $('table.tbl');
+    if ($table.length === 0) return;
+
+    // 1. ヘッダー行（一番上のタイトル行）の右端に空の列を追加
+    $table.find('tbody tr').first().append($('<td>'));
+
+    // 2. 通常のタスク行（idが "td" から始まる行）の右端にチェックボックスを追加
+    const $taskRows = $table.find('tbody tr[id^="td"]');
+    $taskRows.each(function() {
+      const $row = $(this);
+      
+      // 各行のユニークなID（例: 132412）を取得してチェックボックスのname等に利用
+      const rowId = $row.attr('id').replace('td', '');
+
+      // 新しいtd要素とチェックボックスを作成
+      const $newTd = $('<td>', { style: 'text-align: center; vertical-align: middle;' });
+      const $checkbox = $('<input>', {
+        type: 'checkbox',
+        name: 'custom_todo_check[' + rowId + ']',
+        id: 'custom_todo_check_' + rowId,
+        css: { 'cursor': 'pointer', 'transform': 'scale(1.2)' } // 押しやすいように少し大きめに
+      });
+
+      $newTd.append($checkbox);
+      $row.append($newTd);
+    });
+
+    // 3. 【レイアウト崩れ対策】詳細行（idが "tr-todo" から始まる行）のcolspanを 10 から 11 に増やす
+    const $detailRows = $table.find('tbody tr[id^="tr-todo"]');
+    $detailRows.each(function() {
+      const $td = $(this).find('td[colspan="10"]');
+      if ($td.length > 0) {
+        $td.attr('colspan', '11');
+      }
+    });
+  }
+};
+
 //以下はもう一つ globalFunction.jsとか別ファイルを作ってそっちにいれるほうがいいかな
 async function postData() {
   if (!endpoint) {

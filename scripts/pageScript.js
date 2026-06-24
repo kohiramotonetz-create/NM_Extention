@@ -52,6 +52,12 @@ $(function () {
       // 【共通処理】ページに合わせたデフォルト表示を実行
       FUNCTION.takamatsuCustom.init();
       break;
+    // ------------ TODOリストのカスタム（今回追加分） ------------
+    case '/netz/netz1/todo/todo_list.aspx':
+      console.log('todo_list_Running');
+      // 右端にチェックボックス列を挿入する関数を実行
+      FUNCTION.todoList_custom.appendCheckboxColumn();
+      break;   
 
     
     // ------------ ページ別機能の実装 ------------
