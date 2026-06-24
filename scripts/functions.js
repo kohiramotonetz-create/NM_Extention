@@ -249,6 +249,19 @@ FUNCTION.todoList_custom = {
         css: { 'cursor': 'pointer', 'transform': 'scale(1.2)' } // 押しやすいように少し大きめに
       });
 
+      // ★ここを追加：チェックボックスが操作されたらバックグラウンドへ通知する
+      $checkbox.on('change', function() {
+        if ($(this).prop('checked')) {
+          const taskid = rowId; // タスクIDをセット
+          
+          chrome.runtime.sendMessage({
+            openTabBack: `https://menu.edu-netz.com/netz/netz1/todo/todo_input.aspx?setState=F&doSave=true&id=${taskid}`
+          }, (response) => {
+            console.log('Background response:', response);
+          });
+        }
+      });
+
       $newTd.append($checkbox);
       $row.append($newTd);
     });

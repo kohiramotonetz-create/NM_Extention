@@ -45,6 +45,7 @@ $(function () {
       // breakを書かないことで、生徒一覧のときもそのまま自動的に下のカスタム共通処理へと流れます。
 
     case '/netz/netz1/kouza_enshu_list.aspx':     // 日程選択型講座一覧画面
+    case '/netz/netz1/shingaku/kouza_list.aspx': // 日程固定型講座一覧のヘッダーフレーム
     case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ一覧のヘッダーフレーム
     case '/netz/netz1/k/keiyaku_list_head.aspx':  // 契約一覧のヘッダーフレーム
     case '/netz/netz1/t/teacher_list_head.aspx':  // 講師一覧のヘッダーフレーム

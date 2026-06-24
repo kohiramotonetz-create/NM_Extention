@@ -22,3 +22,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
   }
 });
+
+// ★ここを追加：ページ側からのメッセージを受け取るリスナー
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.openTabBack !== undefined) {
+    chrome.tabs
+      .create({ url: request.openTabBack, active: false })
+      .then(() => sendResponse({ status: 'ok' }))
+      .catch(e => {
+        console.error(e.message);
+        sendResponse({ status: 'error', message: e.message });
+      });
+    return true; // 非同期処理（sendResponse）のために必須
+  }
+});
