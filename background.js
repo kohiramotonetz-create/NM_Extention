@@ -5,12 +5,13 @@ const blockedUrls = [
   'https://menu.edu-netz.com/netz/netz1/closewindow2.html',
   'https://menu2.edu-netz.com/netz/netz1/closewindow2.html',
   'https://menu.edu-netz.com/netz/netz1/tehai/shido_furikae_input_save_utf8.aspx',
+  'closewindow', 
 ];
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
     for (const url of blockedUrls) {
-      if (tab.url.startsWith(url)) {
+      if (tab.url.startsWith(url) || tab.url.includes(url)) {
         chrome.tabs
           .remove(tabId)
           .catch((err) => console.error('Tab remove error:', err));
@@ -21,11 +22,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 // --------------------------------------------------
-// 【統合版窓口】すべてのメッセージを受け取るリスナー
+// 【復活】フロントからのメッセージを確実に受け取るリスナー
 // --------------------------------------------------
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
-  // 1. 既存コード互換用
   if (request.openTabBack !== undefined) {
     chrome.tabs.create({ url: request.openTabBack, active: false })
       .then(() => sendResponse({ status: 'ok' }))
@@ -33,24 +33,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  // 2. オリジナルメニューからの指示（TODO自動操作）
+  // 自動操作用タブ生成メッセージのハンドリング
   if (request.type === "EXECUTE_TODO_ACTION") {
     const taskIds = request.taskIds;
-    const action = request.action; // delete_tanto, change_status, change_progress
+    const action = request.action; 
+    const extraParam = request.extraParam || ""; 
     const currentOrigin = new URL(sender.tab.url).origin;
 
+    console.log(`[Background受信] アクション: ${action}, タスク数: ${taskIds.length}`);
+
     taskIds.forEach(taskId => {
-      // リンク２（todo_input.aspx）へ「どのタスクか(id)」と「どの処理か(mode)」を伝えて裏で開く
-      const url = `${currentOrigin}/netz/netz1/todo/todo_input.aspx?id=${taskId}&mode=${action}`;
+      const url = `${currentOrigin}/netz/netz1/todo/todo_input.aspx?id=${taskId}&mode=${action}&param=${encodeURIComponent(extraParam)}`;
       
       chrome.tabs.create({ url: url, active: false })
         .then((newTab) => {
-          console.log(`裏画面で編集ページを開きました: ID ${newTab.id} -> ${url}`);
+          console.log(`裏画面タブを生成しました: ID ${newTab.id} -> ${url}`);
         })
         .catch((err) => console.error('タブ作成エラー:', err));
     });
     
-    sendResponse({ status: "processing", count: taskIds.length });
-    return true;
+    sendResponse({ status: "ok", message: "Processing started" });
+    return true; // 非同期応答の維持
   }
 });
