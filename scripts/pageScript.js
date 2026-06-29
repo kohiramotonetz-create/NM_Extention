@@ -38,7 +38,12 @@ $(function () {
     case '/netz/netz1/shingaku/kouza_list.aspx':  //日程固定型講座
     case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報
     case '/netz/netz1/k/keiyaku_list_head.aspx':  // 契約情報
+    case '/netz/netz1/u/gessya_tenpo.aspx':  // 校舎別月謝集計
+    case '/netz/netz1/u/gessya.aspx':  // 学年別月謝集計
     case '/netz/netz1/t/teacher_list_head.aspx':  // 講師情報
+    case '/netz/netz1/kanren/tenpo_shido_kiroku_list.aspx':  // 指導報告
+    case '/netz/netz1/k/kaiyaku_list_head.aspx':  // 解約情報
+    case '/netz/netz1/moshi/moshi_list_head.aspx':  // 模試受験者情報
       console.log('takamatsuCustom_Running_at: ' + location.pathname);
       FUNCTION.takamatsuCustom.init();
       break;
