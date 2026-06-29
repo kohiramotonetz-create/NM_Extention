@@ -7,6 +7,7 @@ const FUNCTION = {};
 // ★ デザイン・スタイルの一括管理
 // ==================================================
 FUNCTION.styles = {
+  // システム標準のボタンやセレクトボックスに100%同期するデザイン
   systemButton: {
     'padding': '0px 6px',
     'margin-left': '10px',
@@ -27,7 +28,7 @@ FUNCTION.styles = {
 };
 
 // ==================================================
-// 汎用コア機能
+// 汎用コア機能（非同期通信など）
 // ==================================================
 FUNCTION.postData = async function (endpoint, body) {
   if (!endpoint) {
@@ -43,6 +44,7 @@ FUNCTION.postData = async function (endpoint, body) {
   }
 };
 
+// 雛形パーツ
 FUNCTION.pagename = {
   appendButton: function () {
     const endpoint = '送信先URL';
@@ -62,23 +64,27 @@ FUNCTION.pagename = {
 
 // --- yotei2（予定画面） ---
 FUNCTION.yotei2_codelist = {
+  /**
+   * 専門部会のリスト（セレクトボックス）を生成して画面に配置する
+   */
   appendDropdown: function() {
     const $inputField = $('textarea[name="select_cd"]');
     const $targetCell = $('td[colspan="175"]');
     
     if ($inputField.length === 0 || $targetCell.length === 0) return;
 
+    // セレクトボックスを生成し、共通スタイルを上から一括適用！
     const $select = $('<select>', {
       id: 'custom-code-list',
       css: FUNCTION.styles.systemButton
     });
 
+    // 選択肢の追加
     $select.append($('<option>', { value: '', text: '-- 専門コード一括入力 --' }));
-    $select.append($('<option>', {
-      value: '000360,000161,000325,000015,000387,000249',
-      text: '専門部会'
-    }));
-
+    $select.append($('<option>', {value: '000360,000161,000325,000015,000387,000249',text: '専門部会'}));
+    $select.append($('<option>', {value: '000024,000387',text: 'MyRoom'}));
+    $select.append($('<option>', {value: '000325,000183,000150,000368,000044',text: 'その他'}));
+    // 自動入力の挙動
     $select.on('change', function() {
       const selectedCodes = $(this).val();
       if (selectedCodes) {
@@ -89,64 +95,85 @@ FUNCTION.yotei2_codelist = {
       }
     });
 
+    // もともとあったオレンジ枠のインプット要素を非表示（hide）にする
     $('input[style*="69.26"], input[style*="25.6"]').hide();
+
+    // 画面に埋め込み
     $targetCell.append($select);
   }
 };
 
-// --- 学年グループフィルター ---
+// ===================================================
+// 学年グループフィルター
+// ====================================================
 FUNCTION.studentList_filter = {
+  // 学年マッピング
   groups: {
     'non-受験生': ['小１', '小２', '小３', '小４', '小５', '小６', '一貫中１', '一貫中２', '一貫中３', '中１', '中２', '高１', '高２'],
     '受験生': ['受験小１', '受験小２', '受験小３', '受験小４', '受験小５', '受験小６', '中３', '高３', '大学受験']
   },
 
   appendFilterDropdown: function() {
+    // 既にフィルターが設置されている場合は重複しないようにスキップ
     if ($('#custom-gakunen-group-filter').length > 0) return;
 
+    // 「複数生徒番号指定画面」ボタンを確実にターゲットにする
     const $btn = $('input[value="複数生徒番号指定画面"]');
     if ($btn.length === 0) return;
 
+    // ボタンの隣にあるチェックボックスの「label要素」を特定する
     const $targetCheckbox = $btn.nextAll('label[for="row_vl"]').first();
     if ($targetCheckbox.length === 0) return;
 
+    // クイックフィルター用のセレクトボックスを作成
     const $groupSelect = $('<select>', {
       id: 'custom-gakunen-group-filter',
       css: FUNCTION.styles.systemButton
     });
 
+    // オプションの追加
     $groupSelect.append($('<option>', { value: 'all', text: '-- 学年一括フィルター --' }));
     $groupSelect.append($('<option>', { value: 'non-受験生', text: '非受験生 (小１～小６/一貫中１～３/中１～２/高１～２)' }));
     $groupSelect.append($('<option>', { value: '受験生', text: '受験生 (受験小/中３/高３/大受)' }));
 
+    // フィルター処理のイベントバインド
     $groupSelect.on('change', function() {
       const selectedGroup = $(this).val();
+      
+      // 廊下（親画面：parent）を経由して、隣の部屋（下の表のフレーム）を覗き込む
       const $bodyFrame = $(parent.document).find('frame[name="student_list_body"]').contents();
       
+      // 表の見出し（theadのtr）から「学年」と書かれている列の順番（位置）を自動で探す
       let gakunenIndex = -1;
       $bodyFrame.find('table.small thead tr td').each(function(index) {
         if ($.trim($(this).text()) === '学年') {
           gakunenIndex = index;
-          return false;
+          return false; // 見つかったらループを抜ける
         }
       });
 
+      // もし「学年」という見出しが見つからなかった場合は安全のために処理を止める
       if (gakunenIndex === -1) {
         console.log('表の中に「学年」の列が見つかりません。');
         return;
       }
 
+      // 生徒の行（tbodyのtr）をすべて取得
       const $rows = $bodyFrame.find('table.small tbody tr[id^="td"]');
 
       if (selectedGroup === 'all') {
+        // すべて表示
         $rows.show();
       } else {
         const allowedGakunen = FUNCTION.studentList_filter.groups[selectedGroup];
         
         $rows.each(function() {
           const $row = $(this);
+          
+          // 先ほど自動判定した「学年」の列番目から正確に文字を読み取る
           const rowGakunen = $.trim($row.find('td').eq(gakunenIndex).text());
 
+          // 判定して目隠し（非表示）を切り替える
           if (allowedGakunen.includes(rowGakunen)) {
             $row.show();
           } else {
@@ -156,22 +183,32 @@ FUNCTION.studentList_filter = {
       }
     });
 
+    // 「表示」ボタンが押されて再読み込みされた時にフィルターをリセット
     $('input[name="b_submit"], input[name="b_submit2"]').on('click', function() {
       $groupSelect.val('all');
     });
 
+    // チェックボックスが入っているlabelのすぐ右隣にスペースを挟んで設置
     $targetCheckbox.after($groupSelect).after(' ');
   }
 };
 
-// --- 担当校舎・高松Ｕカスタム（初期表示制御） ---
+// ===================================================
+// 担当校舎・高松Ｕカスタム（初期表示制御）
+// ====================================================
 FUNCTION.takamatsuCustom = {
   init: function() {
+    // 該当するセレクトボックスをすべて取得し、1つずつ個別に安全に処理する
     $('select[name="tenpo_cd"], select[name="shop_cd"], select[name="tenpo"], select[name="main_tenpo_cd"]').each(function() {
       const $select = $(this);
+
+      // セレクトボックスの中に「担当校舎(value="m")」が存在する場合
       if ($select.find('option[value="m"]').length > 0) {
+        // 初期値が何であれ、担当校舎（m）に強制設定する
         $select.val('m');
       } else {
+        // 「担当校舎」という選択肢が無いセレクトボックスであり、
+        // かつ「高松Ｕ(b3701)」という選択肢を持っている場合のみ、高松Ｕに設定する
         if ($select.find('option[value="b3701"]').length > 0) {
           $select.val('b3701');
         }
@@ -181,15 +218,12 @@ FUNCTION.takamatsuCustom = {
 };
 
 // ===================================================
-// TODOリストカスタム（完全フロントインライン連動自動化方式）
+// TODOリストカスタム（別タブ投げっぱなし高速自動化方式）
 // ===================================================
 FUNCTION.todoList_custom = {
   checkedIds: [],
-  executionQueue: [],
-  currentAction: null,
-  currentValue: null,
 
-  // 1. チェックボックス列の追加と右クリックメニュー制御
+  // 1. チェックボックス列の追加と右クリック階層型メニュー制御（UIを完全維持）
   appendCheckboxColumn: function() {
     const _this = this;
     const $table = $('table.tbl');
@@ -202,7 +236,7 @@ FUNCTION.todoList_custom = {
       $table.find('tbody tr').first().append($('<td>', { text: '選択', class: 'custom-header-cell', style: 'font-weight:bold; text-align:center;' }));
     }
 
-    // 各タスク行にチェックボックスを追加
+    // 通常のタスク行にチェックボックスを追加
     const $taskRows = $table.find('tbody tr[id^="td"]');
     $taskRows.each(function() {
       const $row = $(this);
@@ -221,7 +255,9 @@ FUNCTION.todoList_custom = {
       $checkbox.on('change', function() {
         const taskId = $(this).data('id');
         if ($(this).prop('checked')) {
-          if (!_this.checkedIds.includes(taskId)) _this.checkedIds.push(taskId);
+          if (!_this.checkedIds.includes(taskId)) {
+            _this.checkedIds.push(taskId);
+          }
         } else {
           _this.checkedIds = _this.checkedIds.filter(id => id !== taskId);
         }
@@ -234,10 +270,12 @@ FUNCTION.todoList_custom = {
     // レイアウト崩れ対策
     $table.find('tbody tr[id^="tr-todo"]').each(function() {
       const $td = $(this).find('td[colspan="10"]');
-      if ($td.length > 0) $td.attr('colspan', '11');
+      if ($td.length > 0) {
+        $td.attr('colspan', '11');
+      }
     });
 
-    // コンテキストメニュー用スタイルCSSを動的に注入（子メニュー表示用）
+    // コンテキストメニュー用スタイルCSSを動的に注入（子メニュー横展開用）
     if ($('#custom-menu-style').length === 0) {
       $('<style>', {
         id: 'custom-menu-style',
@@ -252,7 +290,7 @@ FUNCTION.todoList_custom = {
       }).appendTo('head');
     }
 
-    // 右クリックイベント
+    // テーブル内での右クリックでオリジナルメニューを表示
     $table.on('contextmenu', function(e) {
       if (_this.checkedIds.length > 0) {
         e.preventDefault();
@@ -295,144 +333,110 @@ FUNCTION.todoList_custom = {
       }
     });
 
+    // 画面のどこかをクリックしたらメニューを閉じる
     $(document).on('click.customMenuClose', function(e) {
-      if (!$(e.target).closest('#custom-context-menu').length) $('#custom-context-menu').remove();
+      if (!$(e.target).closest('#custom-context-menu').length) {
+        $('#custom-context-menu').remove();
+      }
     });
 
+    // 一覧更新時リreset
     $('input[onclick="formreload()"]').on('click', function() {
       _this.checkedIds = [];
       $('#custom-context-menu').remove();
     });
   },
 
-  // 2. 自動化処理ループの初期化
+  // 2. 自動化処理の実行（新方式：300ms間隔でのポップアップブロック回避別タブ連続オープナー）
   startAutomationLoop: function(action, value) {
     const _this = this;
     $('#custom-context-menu').remove();
 
     if (_this.checkedIds.length === 0) return;
 
-    // キューの作成
-    _this.executionQueue = [..._this.checkedIds];
-    _this.currentAction = action;
-    _this.currentValue = value;
+    const queue = [..._this.checkedIds];
+    console.log('【自動化開始 (別タブ自律型)】対象件数: ' + queue.length + '件');
 
-    // バックグラウンド動作用の非表示隠し iframe が無ければ作成
-    let $iframe = $('#custom-todo-worker');
-    if ($iframe.length === 0) {
-      $iframe = $('<iframe>', {
-        id: 'custom-todo-worker',
-        style: 'display:none; width:0; height:0;'
-      }).appendTo('body');
-    }
-
-    console.log('【自動化開始】処理対象件数: ' + _this.executionQueue.length + '件');
-    _this.executeNextQueue();
-  },
-
-  // 3. 再帰関数によるキューの順次処理
-  executeNextQueue: function() {
-    const _this = this;
-
-    if (_this.executionQueue.length === 0) {
-      console.log('【自動化完了】すべてのタスク処理が完了しました。一覧を更新します。');
-      // 全て完了したら元のチェックボックスをリセットし、本来のリロード関数を叩く
-      _this.checkedIds = [];
-      if (typeof formreload === 'function') {
-        formreload();
-      } else {
-        location.reload();
+    let index = 0;
+    const intervalId = setInterval(function() {
+      if (index >= queue.length) {
+        clearInterval(intervalId);
+        console.log('【タブ展開完了】すべての別タブを時間差で開きました。一覧画面をリロードします。');
+        
+        // メインの一覧画面側は一足先にリロードして実行完了を待つ
+        _this.checkedIds = [];
+        if (typeof formreload === 'function') {
+          formreload();
+        } else {
+          location.reload();
+        }
+        return;
       }
-      return;
-    }
 
-    const nextId = _this.executionQueue.shift();
-    console.log('現在処理中 タスクID: ' + nextId + ' (残り: ' + _this.executionQueue.length + '件)');
+      const taskId = queue[index];
+      // クエリパラメータに命令アクションと値を埋め込んで安全にURLを生成
+      const targetUrl = window.location.origin + 
+        '/netz/netz1/todo/todo_input.aspx?id=' + taskId + 
+        '&custom_action=' + action + 
+        '&custom_val=' + encodeURIComponent(value);
 
-    const $iframe = $('#custom-todo-worker');
-    
-    // iframeの読み込み完了イベントを一度だけバインド
-    $iframe.off('load').on('load', function() {
-      setTimeout(function() {
-        _this.manipulateInputField(nextId);
-      }, 800); // ロード後のAjax等による動的生成を見越して僅かにウェイト
-    });
+      // 完全別タブ（裏画面）として新規展開し、タブ側に処理を投げっぱなす
+      window.open(targetUrl, '_blank');
+      console.log(' -> 別タブ起動指示: ' + targetUrl);
 
-    // 規定のURL構造に合わせてiframe内を強制遷移させる
-    const targetUrl = window.location.origin + '/netz/netz1/todo/todo_input.aspx?id=' + nextId;
-    $iframe.attr('src', targetUrl);
-  },
+      index++;
+    }, 300); // 0.3秒間隔でポップアップブロック制限をすり抜ける
+  }
+};
 
-  // 4. 隠しiframe内のDOM解析・要素操作・エミュレート保存
-  manipulateInputField: function(taskId) {
-    const _this = this;
-    const $iframe = $('#custom-todo-worker');
-    const iframeWindow = $iframe[0].contentWindow;
-    const $contents = $iframe.contents();
+// ===================================================
+// TODOリスト修正画面カスタム（別タブ側で勝手に動いて閉じる自律ロジック）
+// ===================================================
+FUNCTION.todoInput_custom = {
+  executeAutomation: function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('custom_action');
+    const val = urlParams.get('custom_val');
 
-    // 登録ボタンの捕捉
-    const $submitBtn = $contents.find('#b_submit, input[name="b_submit"], input[value="登録"]');
+    // 通常の手動アクセス（カスタムパラメータ無し）の場合は自動エミュレートを走らせず終了
+    if (!action) return;
 
-    // アラートポップアップが走ると処理が永久ストップするため事前に完全に上書き無効化
-    if (iframeWindow) {
-      iframeWindow.alert = function(msg) { console.log('【システムAlertを検知しスルー】:', msg); };
-      iframeWindow.confirm = function(msg) { console.log('【システムConfirmを検知し自動承認】:', msg); return true; };
-    }
+    console.log('【別タブ自律自動化稼働中】指示アクション: ' + action + ', 値: ' + val);
 
-    // まだ入力画面ではなく、保存完了後の別画面等にいる場合はスキップして次へ
-    if ($submitBtn.length === 0 && $contents.find('select[name="jyotai_cb"]').length === 0) {
-      console.log('入力フォーム要素が見つからないため、次のタスクへスキップします。');
-      _this.executeNextQueue();
-      return;
-    }
+    // ★超重要: 登録完了時に出現するalertポップアップによる画面フリーズを完全に制御して無効化
+    window.alert = function(msg) { console.log('【システムAlertを検知しスルーしました】:', msg); };
+    window.confirm = function(msg) { console.log('【システムConfirmを検知し自動承認しました】:', msg); return true; };
 
-    // 各種アクションのフロントエミュレート
-    if (_this.currentAction === 'change_status') {
+    // 1. パラメータに合わせたフロント要素の書き換えエミュレート
+    if (action === 'change_status') {
       // ⚙️ 状態変更
-      const $select = $contents.find('select[name="jyotai_cb"]');
+      const $select = $('select[name="jyotai_cb"]');
       if ($select.length > 0) {
-        $select.val(_this.currentValue).trigger('change');
-        console.log(' -> 状態を書き換えました: ' + _this.currentValue);
+        $select.val(val).trigger('change');
       }
     } 
-    else if (_this.currentAction === 'change_progress') {
+    else if (action === 'change_progress') {
       // 📈 進捗率変更
-      const $progress = $contents.find('#progress_vl, input[name="progress_vl"]');
+      const $progress = $('#progress_vl, input[name="progress_vl"]');
       if ($progress.length > 0) {
-        $progress.val(_this.currentValue).trigger('change');
-        console.log(' -> 進捗率を書き換えました: ' + _this.currentValue + '%');
+        $progress.val(val).trigger('change');
       }
     } 
-    else if (_this.currentAction === 'delete_tanto') {
-      // 👤 担当者削除
-      // id="delcd000387" などの「×」ボタン要素をダイレクトに狙い撃ち
-      const targetDelId = '#delcd' + _this.currentValue;
-      const $delSpan = $contents.find(targetDelId);
-      
+    else if (action === 'delete_tanto') {
+      // 👤 担当者削除 (id="delcd000387" などの「×」ボタン削除スパンを直接狙い撃ち)
+      const $delSpan = $('#delcd' + val);
       if ($delSpan.length > 0) {
         $delSpan.trigger('click');
-        console.log(' -> 担当者コード: ' + _this.currentValue + ' の削除スパンをクリックしました。');
-      } else {
-        console.log(' -> 対象の担当者削除要素がこのタスクに存在しませんでした。');
       }
     }
 
-    // 保存ボタンの自動実行
+    // 2. 登録ボタンの自動クリック（微小ウェイトを入れ、値の変更イベントを確実に反映）
     setTimeout(function() {
+      const $submitBtn = $('#b_submit, input[name="b_submit"], input[value="登録"]');
       if ($submitBtn.length > 0) {
-        console.log(' -> 登録ボタンを自動クリックして保存します。');
-        
-        // 登録完了後のiframe遷移をキャッチして次のキューを回すための単発バインド
-        $iframe.off('load').on('load', function() {
-          setTimeout(function() {
-            _this.executeNextQueue();
-          }, 500);
-        });
-
+        console.log(' -> 登録ボタンを自動実行して保存します。');
         $submitBtn.trigger('click');
-      } else {
-        // ボタンがなかった場合は安全のため離脱して次へ
-        _this.executeNextQueue();
+        // 保存リクエスト完了後、システム本来の仕様（パターンA）により、alertを通過して自動でタブが閉じます。
       }
     }, 400);
   }
