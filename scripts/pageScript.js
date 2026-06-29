@@ -34,11 +34,11 @@ $(function () {
       console.log('student_list_head_Running');
       FUNCTION.studentList_filter.appendFilterDropdown();
 
-    case '/netz/netz1/kouza_enshu_list.aspx':     
-    case '/netz/netz1/shingaku/kouza_list.aspx': 
-    case '/netz/netz1/toiawase_list_head.aspx':  
-    case '/netz/netz1/k/keiyaku_list_head.aspx':  
-    case '/netz/netz1/t/teacher_list_head.aspx':  
+    case '/netz/netz1/shingaku/kouza_enshu_list.aspx': // 日程選択型講座     
+    case '/netz/netz1/shingaku/kouza_list.aspx':  //日程固定型講座
+    case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報
+    case '/netz/netz1/k/keiyaku_list_head.aspx':  // 契約情報
+    case '/netz/netz1/t/teacher_list_head.aspx':  // 講師情報
       console.log('takamatsuCustom_Running_at: ' + location.pathname);
       FUNCTION.takamatsuCustom.init();
       break;

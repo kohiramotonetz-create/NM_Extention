@@ -8,8 +8,7 @@
     "tabs",
     "nativeMessaging",
     "contextMenus",
-    "downloads",
-    "input"
+    "downloads"
   ],
   "background": {
     "service_worker": "background.js"
