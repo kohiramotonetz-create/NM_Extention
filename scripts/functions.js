@@ -442,6 +442,124 @@ FUNCTION.todoInput_custom = {
   }
 };
 
+// ===================================================
+// 汎用テーブルExcel風フィルター機能（複合AND検索対応）
+// ====================================================
+FUNCTION.tableExcelFilter = {
+  /**
+   * 指定されたjQueryテーブル要素にフィルター機能を組み込む
+   * @param {jQuery} $table - 対象のテーブル要素
+   */
+  init: function($table) {
+    if (!$table || $table.length === 0) return;
+
+    // 1. ヘッダー行の特定 (thead内を最優先、なければtbodyの1行目)
+    let $headerRow = $table.find('thead tr').first();
+    if ($headerRow.length === 0) {
+      $headerRow = $table.find('tbody tr').first();
+    }
+    if ($headerRow.length === 0) return;
+
+    // 2. データ行（idが"td"で始まるtr）のみを抽出
+    const $dataRows = $table.find('tbody tr[id^="td"]');
+    if ($dataRows.length === 0) return;
+
+    // フィルター用スタイル設定（既存のsystemButtonをベースにコンパクトに調整）
+    const filterStyle = $.extend({}, FUNCTION.styles.systemButton, {
+      'display': 'inline-block',
+      'width': 'auto',
+      'max-width': '100px',
+      'font-size': '8pt',
+      'height': '18px',
+      'padding': '0px 2px',
+      'margin-left': '6px',
+      'vertical-align': 'middle',
+      'font-weight': 'normal'
+    });
+
+    // 3. 各ヘッダーセルをスキャンしてセレクトボックスを配置
+    $headerRow.find('td, th').each(function(colIndex) {
+      const $headerCell = $(this);
+      
+      // 既にフィルターが設置されている場合は重複防止のためスキップ
+      if ($headerCell.find('.custom-table-filter').length > 0) return;
+
+      // この列に存在するデータ行のテキストを一意（Unique）に取得
+      const uniqueValues = [];
+      $dataRows.each(function() {
+        const cellText = $.trim($(this).find('td').eq(colIndex).text());
+        // 空文字でなく、まだ配列に存在しない場合は追加
+        if (cellText !== '' && $.inArray(cellText, uniqueValues) === -1) {
+          uniqueValues.push(cellText);
+        }
+      });
+
+      // 選択肢が「全て表示」以外に無い、または1つだけの場合はフィルターを生成しない
+      if (uniqueValues.length <= 1) return;
+
+      // ユーザーが見やすいように選択肢を昇順ソート
+      uniqueValues.sort();
+
+      // セレクトボックスの生成
+      const $select = $('<select>', {
+        class: 'custom-table-filter',
+        css: filterStyle,
+        data: { 'col-index': colIndex } // 列番号を保持
+      });
+
+      // 初期値（全て表示）を追加
+      $select.append($('<option>', { value: '', text: '▼ 全て' }));
+      
+      // 動的に生成した一意な選択肢を追加
+      $.each(uniqueValues, function(index, value) {
+        $select.append($('<option>', { value: value, text: value }));
+      });
+
+      // ヘッダーのレイアウト崩れを防ぐため、インラインブロック化してセルの末尾に配置
+      $headerCell.css('white-space', 'nowrap').append($select);
+    });
+
+    // 4. フィルター変更時のイベント処理（デリゲートにより安全にバインド）
+    $headerRow.off('change', '.custom-table-filter').on('change', '.custom-table-filter', function() {
+      
+      // 現在アクティブな（選択されている）フィルター条件をすべて収集
+      const activeFilters = [];
+      $headerRow.find('.custom-table-filter').each(function() {
+        const $currentSelect = $(this);
+        const selectedValue = $currentSelect.val();
+        if (selectedValue !== '') {
+          activeFilters.push({
+            colIndex: $currentSelect.data('col-index'),
+            value: selectedValue
+          });
+        }
+      });
+
+      // 各データ行を表示するか非表示にするか一括判定 (Excel同等のAND条件)
+      $dataRows.each(function() {
+        const $row = $(this);
+        let isMatch = true;
+
+        // すべてのアクティブなフィルター条件を満たしているかチェック
+        $.each(activeFilters, function(i, filter) {
+          const rowCellText = $.trim($row.find('td').eq(filter.colIndex).text());
+          if (rowCellText !== filter.value) {
+            isMatch = false;
+            return false; // 一つでも不一致があればループを抜ける (break)
+          }
+        });
+
+        // 判定結果に基づいて表示を切り替え
+        if (isMatch) {
+          $row.show();
+        } else {
+          $row.hide();
+        }
+      });
+    });
+  }
+};
+
 // 以下はもう一つ globalFunction.jsとか別ファイルを作ってそっちにいれるほうがいいかな
 async function postData() {
   if (!endpoint) {

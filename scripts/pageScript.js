@@ -34,6 +34,37 @@ $(function () {
       console.log('student_list_head_Running');
       FUNCTION.studentList_filter.appendFilterDropdown();
 
+      // 下フレーム（student_list_body）のテーブルに汎用Excelフィルターを適用する例
+      // ※ document_idleかつ生データ展開後のタイミングに合わせるため、少しだけ猶予を持たせるかそのまま実行
+      const $studentTable = $(parent.document).find('frame[name="student_list_body"]').contents().find('table.small');
+      FUNCTION.tableExcelFilter.init($studentTable);
+      break;
+
+    case '/netz/netz1/shingaku/kouza_enshu_list.aspx': // 日程選択型講座     
+    case '/netz/netz1/shingaku/kouza_list.aspx':      // 日程固定型講座
+      console.log('kouza_list_Running');
+      // 自画面内のテーブル（table.small）に適用する場合の例
+      const $kouzaTable = $('table.small');
+      FUNCTION.tableExcelFilter.init($kouzaTable);
+      
+      // 既存の高松カスタムも並行して維持
+      FUNCTION.takamatsuCustom.init();
+      break;
+      
+    case '/netz/netz1/k/keiyaku_list_head.aspx':      // 契約情報
+      console.log('keiyaku_list_Running');
+      // 自画面、または別フレームなど、URLの構造に合わせたターゲットテーブルを指定
+      const $keiyakuTable = $('table.small'); 
+      FUNCTION.tableExcelFilter.init($keiyakuTable);
+
+      FUNCTION.takamatsuCustom.init();
+      break;
+
+
+    case '/netz/netz1/student_list_head.aspx': 
+      console.log('student_list_head_Running');
+      FUNCTION.studentList_filter.appendFilterDropdown();
+
     case '/netz/netz1/shingaku/kouza_enshu_list.aspx': // 日程選択型講座     
     case '/netz/netz1/shingaku/kouza_list.aspx':  //日程固定型講座
     case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報
