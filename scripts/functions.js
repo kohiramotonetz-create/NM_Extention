@@ -443,119 +443,298 @@ FUNCTION.todoInput_custom = {
 };
 
 // ===================================================
-// 汎用テーブルExcel風フィルター機能（複合AND検索対応）
+// 汎用テーブルExcel風フィルター機能（無名テーブル・カスタムID完全連動版）
 // ====================================================
 FUNCTION.tableExcelFilter = {
-  /**
-   * 指定されたjQueryテーブル要素にフィルター機能を組み込む
-   * @param {jQuery} $table - 対象のテーブル要素
-   */
   init: function($table) {
     if (!$table || $table.length === 0) return;
 
-    // 1. ヘッダー行の特定 (thead内を最優先、なければtbodyの1行目)
+    // テーブルが属している「ウィンドウ」と「body」を特定（子フレーム対応）
+    const targetWindow = $table[0].ownerDocument.defaultView;
+    const $targetBody = $($table[0].ownerDocument.body);
+
+    // 1. ヘッダー行の特定
     let $headerRow = $table.find('thead tr').first();
     if ($headerRow.length === 0) {
       $headerRow = $table.find('tbody tr').first();
     }
     if ($headerRow.length === 0) return;
 
-    // 2. データ行（idが"td"で始まるtr）のみを抽出
-    const $dataRows = $table.find('tbody tr[id^="td"]');
+    // 2. 【完全修正】データ行（"td" "tr" または自動付与された "custom-td" で始まるtr）を柔軟に抽出
+    const $dataRows = $table.find('tbody tr, tr').filter(function() {
+      const rowId = $(this).attr('id');
+      return rowId && (
+        rowId.indexOf('td') === 0 || 
+        rowId.indexOf('tr') === 0 || 
+        rowId.indexOf('custom-td') === 0
+      );
+    });
     if ($dataRows.length === 0) return;
 
-    // フィルター用スタイル設定（既存のsystemButtonをベースにコンパクトに調整）
-    const filterStyle = $.extend({}, FUNCTION.styles.systemButton, {
-      'display': 'inline-block',
-      'width': 'auto',
-      'max-width': '100px',
-      'font-size': '8pt',
-      'height': '18px',
-      'padding': '0px 2px',
-      'margin-left': '6px',
-      'vertical-align': 'middle',
-      'font-weight': 'normal'
-    });
+    // 古いメニューがあればクリア
+    $targetBody.find('.custom-filter-floating-menu').remove();
 
-    // 3. 各ヘッダーセルをスキャンしてセレクトボックスを配置
+    // スタイルCSSを注入
+    if ($table[0].ownerDocument.getElementById('custom-filter-popup-style') === null) {
+      $('<style>', {
+        id: 'custom-filter-popup-style',
+        text: `
+          .filter-btn { display: inline-block; padding: 0 4px; height: 16px; line-height: 14px; font-size: 8pt; border: 1px solid #666; border-radius: 3px; background: linear-gradient(to bottom, #fff 0%, #e1e1e1 100%); cursor: pointer; user-select: none; color: #111; font-weight: normal; margin-left: 4px; vertical-align: middle; }
+          .filter-btn.active { background: #b3d4fc; border-color: #3388ff; font-weight: bold; }
+          
+          .custom-filter-floating-menu { 
+            display: none; 
+            position: absolute; 
+            background: #ffffff !important; 
+            border: 1px solid #999999 !important; 
+            border-radius: 4px !important; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important; 
+            padding: 6px !important; 
+            z-index: 2147483647 !important; 
+            min-width: 150px; 
+            max-height: 260px; 
+            overflow-y: auto; 
+            text-align: left;
+            font-family: sans-serif;
+          }
+          
+          .filter-sort-section { border-bottom: 1px solid #ddd; margin-bottom: 6px; padding-bottom: 4px; }
+          .filter-sort-btn { display: block; width: 100%; text-align: left; background: none; border: none; padding: 4px 6px; font-size: 9pt; color: #333; cursor: pointer; border-radius: 2px; }
+          .filter-sort-btn:hover { background-color: #f0f4f9; color: #0056b3; }
+          
+          .filter-item-list { max-height: 140px; overflow-y: auto; }
+          .filter-item { display: flex; align-items: center; padding: 3px 6px; font-size: 9pt; color: #333; cursor: pointer; white-space: nowrap; margin: 0; }
+          .filter-item:hover { background-color: #f0f4f9; }
+          .filter-item input[type="checkbox"] { margin: 0 6px 0 0; padding: 0; vertical-align: middle; cursor: pointer; }
+          
+          .filter-actions { border-top: 1px solid #ddd; margin-top: 6px; padding-top: 4px; text-align: right; }
+          .filter-action-btn { font-size: 8pt; padding: 1px 6px; cursor: pointer; border: 1px solid #bbb; background: #f5f5f5; border-radius: 2px; }
+          .filter-action-btn:hover { background: #e5e5e5; }
+        `
+      }).appendTo($table[0].ownerDocument.head);
+    }
+
+    // 3. 各ヘッダーセルをスキャン
     $headerRow.find('td, th').each(function(colIndex) {
       const $headerCell = $(this);
       
-      // 既にフィルターが設置されている場合は重複防止のためスキップ
-      if ($headerCell.find('.custom-table-filter').length > 0) return;
+      if ($headerCell.find('.filter-btn').length > 0) return;
 
-      // この列に存在するデータ行のテキストを一意（Unique）に取得
+      const headerText = $.trim($headerCell.text());
+      if (headerText === '' || headerText === ' ' || $headerCell.find('input[type="button"], button').length > 0) return;
+
+      // ユニークリストの抽出
       const uniqueValues = [];
       $dataRows.each(function() {
-        const cellText = $.trim($(this).find('td').eq(colIndex).text());
-        // 空文字でなく、まだ配列に存在しない場合は追加
+        const $targetTd = $(this).find('td').eq(colIndex);
+        if ($targetTd.length === 0) return;
+        
+        let cellText = $targetTd.clone().children('select, input, script, style').remove().end().text();
+        cellText = $.trim(cellText);
+
         if (cellText !== '' && $.inArray(cellText, uniqueValues) === -1) {
           uniqueValues.push(cellText);
         }
       });
 
-      // 選択肢が「全て表示」以外に無い、または1つだけの場合はフィルターを生成しない
       if (uniqueValues.length <= 1) return;
-
-      // ユーザーが見やすいように選択肢を昇順ソート
       uniqueValues.sort();
 
-      // セレクトボックスの生成
-      const $select = $('<select>', {
-        class: 'custom-table-filter',
-        css: filterStyle,
-        data: { 'col-index': colIndex } // 列番号を保持
+      // ① ボタンをヘッダーセルの中に配置
+      const $button = $('<div>', { class: 'filter-btn', text: '▼', id: 'filter-btn-col-' + colIndex });
+      $headerCell.css('white-space', 'nowrap').append($button);
+
+      // ② メニュー本体の生成
+      const $menu = $('<div>', { 
+        class: 'custom-filter-floating-menu', 
+        id: 'filter-menu-col-' + colIndex,
+        data: { 'col-index': colIndex }
       });
 
-      // 初期値（全て表示）を追加
-      $select.append($('<option>', { value: '', text: '▼ 全て' }));
+      // 並べ替え（ソート）セクション
+      const $sortSection = $('<div>', { class: 'filter-sort-section' });
+      const $sortAscBtn = $('<button>', { type: 'button', class: 'filter-sort-btn', html: '🔼 昇順で並べ替え' });
+      const $sortDescBtn = $('<button>', { type: 'button', class: 'filter-sort-btn', html: '🔽 降順で並べ替え' });
+
+      $sortAscBtn.on('click', function(e) {
+        e.stopPropagation();
+        FUNCTION.tableExcelFilter.sortRows($table, colIndex, 'asc');
+        $menu.hide();
+      });
+
+      $sortDescBtn.on('click', function(e) {
+        e.stopPropagation();
+        FUNCTION.tableExcelFilter.sortRows($table, colIndex, 'desc');
+        $menu.hide();
+      });
+
+      $sortSection.append($sortAscBtn).append($sortDescBtn);
+      $menu.append($sortSection);
+
+      // チェックボックスリストセクション
+      const $itemList = $('<div>', { class: 'filter-item-list' });
+      $.each(uniqueValues, function(i, val) {
+        const $item = $('<label>', { class: 'filter-item' });
+        const $checkbox = $('<input>', { 
+          type: 'checkbox', 
+          value: val, 
+          class: 'filter-check-val',
+          checked: true
+        });
+        
+        const displayVal = val.length > 14 ? val.substring(0, 14) + '...' : val;
+        $item.append($checkbox).append($('<span>', { text: displayVal }));
+        $itemList.append($item);
+      });
+      $menu.append($itemList);
+
+      // アクションボタン
+      const $actions = $('<div>', { class: 'filter-actions' });
+      const $clearBtn = $('<button>', { type: 'button', class: 'filter-action-btn', text: 'クリア' });
       
-      // 動的に生成した一意な選択肢を追加
-      $.each(uniqueValues, function(index, value) {
-        $select.append($('<option>', { value: value, text: value }));
+      $clearBtn.on('click', function(e) {
+        e.stopPropagation();
+        const $checks = $menu.find('.filter-check-val');
+        const anyChecked = $checks.filter(':checked').length > 0;
+        $checks.prop('checked', !anyChecked).trigger('change');
+        $(this).text(anyChecked ? '全選択' : 'クリア');
+      });
+      
+      $actions.append($clearBtn);
+      $menu.append($actions);
+      
+      // 子フレームのbodyに追加
+      $targetBody.append($menu);
+
+      // ▼ クリックイベント
+      $button.on('click', function(e) {
+        e.stopPropagation();
+        $targetBody.find('.custom-filter-floating-menu').not($menu).hide();
+
+        if ($menu.is(':visible')) {
+          $menu.hide();
+        } else {
+          const btnOffset = $button.offset();
+          const btnHeight = $button.outerHeight();
+          $menu.css({
+            top: (btnOffset.top + btnHeight) + 'px',
+            left: btnOffset.left + 'px'
+          }).fadeIn(100);
+        }
       });
 
-      // ヘッダーのレイアウト崩れを防ぐため、インラインブロック化してセルの末尾に配置
-      $headerCell.css('white-space', 'nowrap').append($select);
+      // チェック変更イベント
+      $menu.on('change', '.filter-check-val', function() {
+        const $checks = $menu.find('.filter-check-val');
+        const checkedCount = $checks.filter(':checked').length;
+        $clearBtn.text(checkedCount > 0 ? 'クリア' : '全選択');
+
+        FUNCTION.tableExcelFilter.executeFilter($headerRow, $dataRows, $targetBody);
+      });
     });
 
-    // 4. フィルター変更時のイベント処理（デリゲートにより安全にバインド）
-    $headerRow.off('change', '.custom-table-filter').on('change', '.custom-table-filter', function() {
+    // メニュー外クリックで閉じる
+    $(targetWindow.document).off('click.filterMenuClose').on('click.filterMenuClose', function(e) {
+      if (!$(e.target).closest('.custom-filter-floating-menu, .filter-btn').length) {
+        $targetBody.find('.custom-filter-floating-menu').hide();
+      }
+    });
+  },
+
+  /**
+   * 行データを昇順・降順に物理的に並び替えるロジック
+   */
+  sortRows: function($table, colIndex, direction) {
+    const $parent = $table.find('tbody').length > 0 ? $table.find('tbody') : $table;
+    
+    // ソート対象行の条件式も同様に custom-td に拡張
+    const rows = $parent.find('tr').filter(function() {
+      const rowId = $(this).attr('id');
+      return rowId && (
+        rowId.indexOf('td') === 0 || 
+        rowId.indexOf('tr') === 0 || 
+        rowId.indexOf('custom-td') === 0
+      );
+    }).get();
+
+    rows.sort(function(a, b) {
+      let cellA = $(a).find('td').eq(colIndex).clone().children('select, input, script, style').remove().end().text();
+      let cellB = $(b).find('td').eq(colIndex).clone().children('select, input, script, style').remove().end().text();
       
-      // 現在アクティブな（選択されている）フィルター条件をすべて収集
-      const activeFilters = [];
-      $headerRow.find('.custom-table-filter').each(function() {
-        const $currentSelect = $(this);
-        const selectedValue = $currentSelect.val();
-        if (selectedValue !== '') {
-          activeFilters.push({
-            colIndex: $currentSelect.data('col-index'),
-            value: selectedValue
-          });
-        }
-      });
+      cellA = $.trim(cellA);
+      cellB = $.trim(cellB);
 
-      // 各データ行を表示するか非表示にするか一括判定 (Excel同等のAND条件)
-      $dataRows.each(function() {
-        const $row = $(this);
-        let isMatch = true;
+      const numA = parseFloat(cellA.replace(/,/g, ''));
+      const numB = parseFloat(cellB.replace(/,/g, ''));
 
-        // すべてのアクティブなフィルター条件を満たしているかチェック
-        $.each(activeFilters, function(i, filter) {
-          const rowCellText = $.trim($row.find('td').eq(filter.colIndex).text());
-          if (rowCellText !== filter.value) {
-            isMatch = false;
-            return false; // 一つでも不一致があればループを抜ける (break)
-          }
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return direction === 'asc' ? numA - numB : numB - numA;
+      } else {
+        return direction === 'asc' ? cellA.localeCompare(cellB, 'ja') : cellB.localeCompare(cellA, 'ja');
+      }
+    });
+
+    $.each(rows, function(index, row) {
+      $parent.append(row);
+    });
+
+    // 特殊行（合計行など）の定位置維持ルール
+    const $totalRows = $parent.find('tr').filter(function() {
+      const rowId = $(this).attr('id');
+      return !rowId || (
+        rowId.indexOf('td') !== 0 && 
+        rowId.indexOf('tr') !== 0 && 
+        rowId.indexOf('custom-td') !== 0
+      );
+    });
+    $totalRows.each(function() {
+      $parent.append(this);
+    });
+  },
+
+  /**
+   * フィルタリングの実行
+   */
+  executeFilter: function($headerRow, $dataRows, $targetBody) {
+    const activeFilters = [];
+
+    $targetBody.find('.custom-filter-floating-menu').each(function() {
+      const $menu = $(this);
+      const colIndex = $menu.data('col-index');
+      const $allChecks = $menu.find('.filter-check-val');
+      const $checkedValues = $allChecks.filter(':checked').map(function() { return $(this).val(); }).get();
+      const $relatedBtn = $headerRow.find('#filter-btn-col-' + colIndex);
+
+      if ($checkedValues.length < $allChecks.length) {
+        activeFilters.push({
+          colIndex: colIndex,
+          allowedValues: $checkedValues
         });
+        $relatedBtn.addClass('active');
+      } else {
+        $relatedBtn.removeClass('active');
+      }
+    });
 
-        // 判定結果に基づいて表示を切り替え
-        if (isMatch) {
-          $row.show();
-        } else {
-          $row.hide();
+    $dataRows.each(function() {
+      const $row = $(this);
+      let isMatch = true;
+
+      $.each(activeFilters, function(i, filter) {
+        let rowCellText = $row.find('td').eq(filter.colIndex).clone().children('select, input, script, style').remove().end().text();
+        rowCellText = $.trim(rowCellText);
+
+        if (filter.allowedValues.length === 0 || $.inArray(rowCellText, filter.allowedValues) === -1) {
+          isMatch = false;
+          return false;
         }
       });
+
+      if (isMatch) {
+        $row.show();
+      } else {
+        $row.hide();
+      }
     });
   }
 };
