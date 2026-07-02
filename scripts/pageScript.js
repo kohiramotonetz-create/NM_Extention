@@ -31,62 +31,90 @@ $(function () {
       break;
 
     // =================================================================
-    // パターンA: 【フレーム分離型画面】（生徒一覧・契約一覧・問合せ情報・講師情報など）
-    // 上の部屋(head)から、下の部屋(body)のテーブルを自動検知して狙い撃ちするグループ
+    // パターンA: 【フレーム分離型画面】（生徒一覧・契約一覧・売上情報・入金情報など）
     // =================================================================
-    case '/netz/netz1/uriage_list_head.aspx': // 売上一覧
-    case '/netz/netz1/kanren/booth_select_body.aspx': // ブース表
-    case '/netz/netz1/student_list_head.aspx': // 生徒一覧
-    case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報
-    case '/netz/netz1/k/keiyaku_list_head.aspx':  // 契約一覧
-    case '/netz/netz1/k/kaiyaku_list_head.aspx':  // 解約情報
-    case '/netz/netz1/moshi/moshi_list_head.aspx': // 模試受験者情報
-    case '/netz/netz1/t/teacher_list_head.aspx':  // 講師情報
-    case '/netz/netz1/t/teacher_list_head.aspx':  // 講師情報(body側)
+    // ★売上情報と入金情報の両方を、階層・フォルダ不問で強制キャッチできるように条件式を拡張します
+    case (location.pathname.indexOf('uriage_list_head.aspx') !== -1 ? location.pathname : ''): // 売上情報
+    case (location.pathname.indexOf('nyukin_list_head.aspx') !== -1 ? location.pathname : ''):  // ★【新設】入金情報を強制キャッチ！
+    case '/netz/netz1/kanren/booth_select.aspx':  // ブース選択[cite: 3]
+    case '/netz/netz1/t/teacher_list.aspx':       // 講師一覧（別動線）[cite: 3]
+    case '/netz/netz1/t/teacher_list_head.aspx':   // 講師情報[cite: 3]
+    case '/netz/netz1/student_list_head.aspx':  // 生徒一覧[cite: 3]
+    case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報[cite: 3]
+    case '/netz/netz1/k/keiyaku_list_head.aspx':   // 契約一覧[cite: 3]
+    case '/netz/netz1/k/kaiyaku_list_head.aspx':   // 解約情報[cite: 3]
+    case '/netz/netz1/moshi/moshi_list_head.aspx':  // 模試受験者情報[cite: 3]
       console.log('Frame_Type_Page_Running_at: ' + location.pathname);
       
-      // 1. 【生徒一覧専用】学年一括フィルターの設置
+      // 1. 【生徒一覧専用】学年一括フィルターの設置[cite: 3]
       if (location.pathname === '/netz/netz1/student_list_head.aspx') {
         FUNCTION.studentList_filter.appendFilterDropdown();
       }
 
       // 2. 自動校舎選択（高松カスタム）を実行
+      // これで入金情報画面でも「栗林」や「木太南」が全自動で選択されるようになります！
       FUNCTION.takamatsuCustom.init();
 
-      // 3. 【名前不問】自分（head）と同じ親を持つ「別のフレーム（body）」を自動検知
-      // 画面ごとに異なるフレーム名（student_list_body, teacher_toroku_list_head等）の壁を100%回避します
+      // 3. 自分（head）と同じ親を持つ「別のデータフレーム（body）」を全自動検出[cite: 3]
       let $targetFrame = $();
       $(parent.document).find('frame, iframe').each(function() {
-        // 自分自身のフレーム（head側）ではない方を、データが表示されるターゲット（body側）として特定
         if (this.contentWindow !== window) {
           $targetFrame = $(this);
-          return false; // 特定できたらループを抜ける
+          return false; // break
         }
       });
       
       if ($targetFrame.length > 0) {
         console.log(' -> 下部データフレームを自動検出しました。');
 
-        // 下の部屋がロード・再読み込みされたタイミングで中のテーブルをスキャン
-        $targetFrame.off('load.customExcelFilter').on('load.customExcelFilter', function() {
+        // 下の部屋（データ側）がロード・更新されたタイミングで実行する共通関数
+        const applyFilterToFrame = function() {
           setTimeout(function() {
-            let $bodyTable = $targetFrame.contents().find('tr[id^="td"]').closest('table');
-            if ($bodyTable.length === 0) {
-              $bodyTable = $targetFrame.contents().find('table.small, table.tbl, table');
-            }
-            console.log(' -> ロード完了：データテーブルにExcel汎用フィルターを適用します。');
-            FUNCTION.tableExcelFilter.init($bodyTable);
-          }, 300);
-        });
+            // 下の部屋に存在するテーブル要素を直接ターゲットにする
+            const $tables = $targetFrame.contents().find('table.small, table.tbl, table');
+            
+            $tables.each(function() {
+              const $table = $(this);
+              
+              if ($table.find('.filter-wrap, .filter-btn').length > 0) return;
+              const $rows = $table.find('tbody tr, tr');
+              if ($rows.length <= 1) return;
 
-        // すでに下の部屋のロードが完了している場合の即時適用ロジック
-        if ($targetFrame.contents().find('tr[id^="td"]').length > 0) {
-          const $bodyTable = $targetFrame.contents().find('tr[id^="td"]').closest('table');
-          console.log(' -> 即時適用：データテーブルにExcel汎用フィルターを適用します。');
-          FUNCTION.tableExcelFilter.init($bodyTable);
+              // id無名テーブル対策：データ行にカスタムIDを一括自動付与
+              let hasValidDataRows = false;
+              $rows.each(function(rowIndex) {
+                if (rowIndex === 0) return; // 見出しはスキップ
+                
+                const $row = $(this);
+                const rowId = $row.attr('id');
+                
+                if (rowId && (rowId.indexOf('td') === 0 || rowId.indexOf('tr') === 0)) {
+                  hasValidDataRows = true;
+                } else if (!rowId && $row.find('td').length > 0) {
+                  // 入金合計行（colspanがある行）を安全に除外してデータ明細行のみをマーク
+                  if ($row.find('td').first().attr('colspan') === undefined) {
+                    const customId = 'custom-td-' + Math.random().toString(36).substring(2, 9);
+                    $row.attr('id', customId);
+                    hasValidDataRows = true;
+                  }
+                }
+              });
+
+              if (hasValidDataRows) {
+                console.log(' -> 下部データテーブルにExcel風フィルターを適用しました。');
+                FUNCTION.tableExcelFilter.init($table);
+              }
+            });
+          }, 300);
+        };
+
+        // 下の部屋がロードされたら適用
+        $targetFrame.off('load.customExcelFilter').on('load.customExcelFilter', applyFilterToFrame);
+
+        // 即時適用セーフティネット
+        if ($targetFrame.contents().find('table').length > 0) {
+          applyFilterToFrame();
         }
-      } else {
-        console.log(' -> 下部データフレームの自動検出に失敗しました。');
       }
       break;
 
