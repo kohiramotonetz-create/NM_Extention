@@ -46,9 +46,22 @@ $(function () {
     case '/netz/netz1/moshi/moshi_list_head.aspx':  // 模試受験者情報[cite: 3]
       console.log('Frame_Type_Page_Running_at: ' + location.pathname);
       
-      // 1. 【生徒一覧専用】学年一括フィルターの設置[cite: 3]
+      // 1. 【生徒一覧専用】学年一括フィルターの設置＆デフォルト検索条件の自動適用
       if (location.pathname === '/netz/netz1/student_list_head.aspx') {
         FUNCTION.studentList_filter.appendFilterDropdown();
+
+        // ★追加：並び順を「教室→生徒名」(value="3") に自動切り替え
+        $('input[name="sort"][value="3"]').prop('checked', true);
+
+        // ★追加：状態を「指導中(長+NALU)」(value="+") に自動切り替え
+        $('#jyotai_cb').val('+');
+
+        // ★追加：校舎の自動選択処理などが完了したタイミングを見計らって自動送信（表示ボタン押下）
+        setTimeout(function() {
+          if (document.form1) {
+            document.form1.submit();
+          }
+        }, 100); // 0.1秒の安全バッファ
       }
 
       // 2. 自動校舎選択（高松カスタム）を実行
