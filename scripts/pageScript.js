@@ -34,6 +34,7 @@ $(function () {
     // パターンA: 【フレーム分離型画面】（生徒一覧・契約一覧・問合せ情報・講師情報など）
     // 上の部屋(head)から、下の部屋(body)のテーブルを自動検知して狙い撃ちするグループ
     // =================================================================
+    case '/netz/netz1/uriage_list_head.aspx': // 売上一覧
     case '/netz/netz1/kanren/booth_select_body.aspx': // ブース表
     case '/netz/netz1/student_list_head.aspx': // 生徒一覧
     case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報
@@ -42,7 +43,6 @@ $(function () {
     case '/netz/netz1/moshi/moshi_list_head.aspx': // 模試受験者情報
     case '/netz/netz1/t/teacher_list_head.aspx':  // 講師情報
     case '/netz/netz1/t/teacher_list_head.aspx':  // 講師情報(body側)
-    case '/netz/netz1/u/uriage_list_head.aspx':  // 売上情報
       console.log('Frame_Type_Page_Running_at: ' + location.pathname);
       
       // 1. 【生徒一覧専用】学年一括フィルターの設置
