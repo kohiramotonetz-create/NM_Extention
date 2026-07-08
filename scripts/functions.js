@@ -380,9 +380,9 @@ FUNCTION.todoList_custom = {
         '&custom_action=' + action + 
         '&custom_val=' + encodeURIComponent(value);
 
-      // 完全別タブ（裏画面）として新規展開し、タブ側に処理を投げっぱなす
-      window.open(targetUrl, '_blank');
-      console.log(' -> 別タブ起動指示: ' + targetUrl);
+      // window.open の代わりに background.js へメッセージを送信して完全に裏（非アクティブ）で開く
+      chrome.runtime.sendMessage({ openTabBack: targetUrl });
+      console.log(' -> バックグラウンドタブ起動指示: ' + targetUrl);
 
       index++;
     }, 300); // 0.3秒間隔でポップアップブロック制限をすり抜ける
