@@ -64,42 +64,184 @@ FUNCTION.pagename = {
 
 // --- yotei2（予定画面） ---
 FUNCTION.yotei2_codelist = {
+  // LocalStorageのキー名
+  STORAGE_KEY: 'custom_special_codes',
+
+  // デフォルトのコードセット
+  defaultCodes: [
+    { text: '専門部会', value: '000360,000161,000325,000015,000387,000249', isDefault: true },
+    { text: 'MyRoom', value: '000024,000387', isDefault: true },
+    { text: 'その他', value: '000325,000183,000150,000368,000044', isDefault: true }
+  ],
+
   /**
-   * 専門部会のリスト（セレクトボックス）を生成して画面に配置する
+   * 専門部会のリスト（セレクトボックス）および管理UIを生成して画面に配置する
    */
   appendDropdown: function() {
+    const _this = this;
     const $inputField = $('textarea[name="select_cd"]');
     const $targetCell = $('td[colspan="175"]');
     
     if ($inputField.length === 0 || $targetCell.length === 0) return;
+    if ($('#custom-code-list').length > 0) return; // 重複防止
 
-    // セレクトボックスを生成し、共通スタイルを上から一括適用！
+    // --- 1. LocalStorageの初期化・データ取得 ---
+    let savedCodes = localStorage.getItem(_this.STORAGE_KEY);
+    if (!savedCodes) {
+      // 初回起動時はデフォルト値を保存
+      localStorage.setItem(_this.STORAGE_KEY, JSON.stringify(_this.defaultCodes));
+      savedCodes = _this.defaultCodes;
+    } else {
+      savedCodes = JSON.parse(savedCodes);
+    }
+
+    // --- 2. UI要素の生成 ---
+    // コンテナ（要素を綺麗に横並びにするため）
+    const $container = $('<div>', {
+      id: 'custom-code-container',
+      css: { 'display': 'inline-flex', 'align-items': 'center', 'gap': '6px', 'vertical-align': 'middle' }
+    });
+
+    // ドロップダウン
     const $select = $('<select>', {
       id: 'custom-code-list',
       css: FUNCTION.styles.systemButton
     });
 
-    // 選択肢の追加
-    $select.append($('<option>', { value: '', text: '-- 専門コード一括入力 --' }));
-    $select.append($('<option>', {value: '000360,000161,000325,000015,000387,000249',text: '専門部会'}));
-    $select.append($('<option>', {value: '000024,000387',text: 'MyRoom'}));
-    $select.append($('<option>', {value: '000325,000183,000150,000368,000044',text: 'その他'}));
-    // 自動入力の挙動
+    // 新規登録用の入力欄とボタン
+    const inputStyle = $.extend({}, FUNCTION.styles.systemButton, { 'background': '#ffffff', 'cursor': 'text' });
+    
+    const $titleInput = $('<input>', {
+      type: 'text',
+      id: 'custom-code-title-input',
+      placeholder: '新規タイトル',
+      css: $.extend({}, inputStyle, { 'width': '90px' })
+    });
+
+    const $valueInput = $('<input>', {
+      type: 'text',
+      id: 'custom-code-value-input',
+      placeholder: 'コード(カンマ区切り)',
+      css: $.extend({}, inputStyle, { 'width': '160px' })
+    });
+
+    const $addButton = $('<button>', {
+      type: 'button',
+      text: '登録',
+      css: FUNCTION.styles.systemButton
+    });
+
+    const $delButton = $('<button>', {
+      type: 'button',
+      text: '削除',
+      disabled: true, // 初期状態（未選択）は無効化
+      css: $.extend({}, FUNCTION.styles.systemButton, { 'color': '#cc0000' })
+    });
+
+    // --- 3. ドロップダウンの選択肢を更新する関数 ---
+    const updateDropdown = function() {
+      $select.empty();
+      $select.append($('<option>', { value: '', text: '-- 専門コード一括入力 --' }));
+      
+      const currentList = JSON.parse(localStorage.getItem(_this.STORAGE_KEY)) || _this.defaultCodes;
+      
+      currentList.forEach(function(item, index) {
+        $select.append($('<option>', {
+          value: item.value,
+          text: item.text,
+          data: { index: index, isDefault: item.isDefault }
+        }));
+      });
+      $delButton.prop('disabled', true); // 更新後は削除ボタンを一度無効化
+    };
+
+    // 最初の選択肢割り当て
+    updateDropdown();
+
+    // --- 4. イベントハンドラの実装 ---
+    // 選択変更時の挙動
     $select.on('change', function() {
       const selectedCodes = $(this).val();
+      const $selectedOption = $(this).find('option:selected');
+      const isDefault = $selectedOption.data('isDefault');
+
       if (selectedCodes) {
         $inputField.val(selectedCodes);
         $inputField.trigger('change');
       } else {
         $inputField.val('');
       }
+
+      // デフォルト値以外のカスタムコードが選択されている場合のみ削除ボタンを有効化
+      if (selectedCodes && !isDefault) {
+        $delButton.prop('disabled', false);
+      } else {
+        $delButton.prop('disabled', true);
+      }
     });
 
+    // 登録ボタンクリック
+    $addButton.on('click', function() {
+      const title = $.trim($titleInput.val());
+      const value = $.trim($valueInput.val()).replace(/\s+/g, ''); // 空白除去
+
+      if (!title || !value) {
+        alert('タイトルとコードの両方を入力してください。');
+        return;
+      }
+
+      const currentList = JSON.parse(localStorage.getItem(_this.STORAGE_KEY)) || [];
+      
+      // 重複チェック
+      const isDuplicate = currentList.some(item => item.text === title);
+      if (isDuplicate) {
+        alert('同じタイトルのコードセットが既に存在します。');
+        return;
+      }
+
+      // 新規追加
+      currentList.push({ text: title, value: value, isDefault: false });
+      localStorage.setItem(_this.STORAGE_KEY, JSON.stringify(currentList));
+
+      // 入力欄をクリアしてUIを更新
+      $titleInput.val('');
+      $valueInput.val('');
+      updateDropdown();
+      alert('「' + title + '」を登録しました。');
+    });
+
+    // 削除ボタンクリック
+    $delButton.on('click', function() {
+      const $selectedOption = $select.find('option:selected');
+      const targetIndex = $selectedOption.data('index');
+      const title = $selectedOption.text();
+
+      if (targetIndex === undefined || $selectedOption.data('isDefault')) return;
+
+      if (confirm('「' + title + '」を削除してもよろしいですか？')) {
+        const currentList = JSON.parse(localStorage.getItem(_this.STORAGE_KEY)) || [];
+        currentList.splice(targetIndex, 1); // 指定インデックスの要素を削除
+        
+        localStorage.setItem(_this.STORAGE_KEY, JSON.stringify(currentList));
+        
+        $inputField.val(''); // 入力欄をリセット
+        updateDropdown();
+      }
+    });
+
+    // --- 5. 画面への埋め込み ---
     // もともとあったオレンジ枠のインプット要素を非表示（hide）にする
     $('input[style*="69.26"], input[style*="25.6"]').hide();
 
-    // 画面に埋め込み
-    $targetCell.append($select);
+    // 各要素をコンテナに詰めてターゲットセルに追加
+    $container.append($select)
+              .append($delButton)
+              .append($('<span>', { text: '|', css: { 'color': '#ccc', 'margin': '0 4px' } }))
+              .append($titleInput)
+              .append($valueInput)
+              .append($addButton);
+
+    $targetCell.append($container);
   }
 };
 
