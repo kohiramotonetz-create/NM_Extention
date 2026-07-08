@@ -48,8 +48,6 @@ $(function () {
       
       // 1. 【生徒一覧専用】学年一括フィルターの設置＆デフォルト検索条件の自動適用
       if (location.pathname === '/netz/netz1/student_list_head.aspx') {
-        FUNCTION.studentList_filter.appendFilterDropdown();
-
         // ★追加：並び順を「教室→生徒名」(value="3") に自動切り替え
         $('input[name="sort"][value="3"]').prop('checked', true);
 
