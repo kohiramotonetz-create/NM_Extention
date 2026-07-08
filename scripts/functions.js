@@ -792,6 +792,178 @@ FUNCTION.tableExcelFilter = {
   }
 };
 
+// ===================================================
+// ★ 連絡事項画面プルダウンメニューのボタン化カスタム（厳選版・全ページ網羅）
+// ===================================================
+FUNCTION.studentRenrakuButtons = {
+  // 💡 ご提示いただいた26個の厳選リストです。
+  // この配列の並び順の通りに、画面に左からボタンが生成されます。
+  allowedValues: [
+    '1',     // 家庭情報（旧詳細情報）
+    '2',     // 契約情報
+    '5',     // 連絡事項
+    '8',     // 志望校入力
+    '9',     // 指導予定
+    'a',     // 規定回数｜西日本
+    'f',     // 振替・キャンセル
+    'fcc',   // 振替・キャンセル（コールセンター用）
+    't',     // テキスト発注情報
+    'b',     // 手配情報
+    'g',     // 基本ブース｜50・100分
+    'z',     // 講座管理
+    'm',     // 申込書作成
+    'k',     // 関連情報
+    'aa',    // 指導報告
+    'ml',    // メールアドレス
+    'io',    // 入退館情報
+    'sm',    // 指導予定メール
+    'prof',  // プロファイル
+    'so',    // 都度請求
+    'gm',    // カード登録依頼
+    'fa',    // 未入塾兄弟
+    'apps',  // myネッツS設定
+    'code',  // 認証コード
+    'tanto'  // 担任設定
+  ],
+
+  init: function() {
+    const _this = this;
+    
+    // ページ内にある「開く」ボタンをすべて探す 
+    const openButtons = document.querySelectorAll('input[type="button"][value="開く"]');
+
+    openButtons.forEach(btn => {
+      const onclickText = btn.getAttribute('onclick');
+      if (!onclickText) return;
+      
+      // onclick属性から生徒IDを安全に抽出 
+      const match = onclickText.match(/openform\(([^,]+),\s*'([^']+)'\)/);
+      if (match) {
+        const selectId = match[1];  // 例: d356387
+        const studentCd = match[2]; // 例: 356387
+        const selectEl = document.getElementById(selectId);
+        const $formMenu = $('form[name="form_menu"]'); // 遷移用の隠しフォーム
+        
+        if (selectEl && $formMenu.length > 0) {
+          // ボタンを綺麗に並べるためのコンテナを作成
+          const container = document.createElement('div');
+          container.style.display = 'inline-block';
+          container.style.verticalAlign = 'middle';
+
+          // プルダウンの選択肢(option)をループ 
+          Array.from(selectEl.options).forEach(option => {
+            // ★ 指定された厳選リスト（allowedValues）に含まれているものだけをボタン化する
+            if (!_this.allowedValues.includes(option.value)) return;
+
+            const newBtn = document.createElement('input');
+            newBtn.type = 'button';
+            newBtn.value = option.text;
+            
+            // 既存のシステムボタンのデザイン・高さを100%同期
+            Object.assign(newBtn.style, FUNCTION.styles.systemButton);
+            newBtn.style.marginLeft = '4px'; // ボタン同士の間隔
+
+            // 擬似的な発火処理（拡張機能から安全に直接フォームを書き換えてsubmitします）
+            newBtn.onclick = function() {
+              let actionUrl = '';
+              let targetName = '';
+
+              // 💡 今後のため、プルダウンに存在するすべての全ページのコードを埋め込んであります
+              switch (option.value) {
+                case "1":    actionUrl = "../student_data_input.aspx";       targetName = "student_data"; break;
+                case "2":    actionUrl = "../k/student_keiyaku_data.aspx";   targetName = "keiyaku_data"; break;
+                case "3":    actionUrl = "../u/uriage_input.aspx";           targetName = "uriage_input"; break;
+                case "4":    actionUrl = "../u/uriage_addnew.aspx";          targetName = "uriage_addnew"; break;
+                case "5":    actionUrl = "../s/student_renraku_list.aspx";   targetName = "student_renraku_list"; break;
+                case "6":    actionUrl = "../seiseki/seiseki_list.aspx";     targetName = "seiseki"; break;
+                case "7":    actionUrl = "../student_kouza_input.aspx";      targetName = "kouza"; break;
+                case "8":    actionUrl = "../s/shibo_input.aspx";            targetName = "shibo"; break;
+                case "9":    actionUrl = "../kanren/student_shido_yotei.aspx"; targetName = "shido_yotei_s" + studentCd; break;
+                case "a":    actionUrl = "../kanren/student_kaisu_list3.aspx"; targetName = "student_kaisu_list"; break;
+                case "ak":   actionUrl = "../kanren/student_kaisu_list3_k.aspx"; targetName = "student_kaisu_list"; break;
+                case "ah":   actionUrl = "../kanren/student_kaisu_list3_h.aspx"; targetName = "student_kaisu_list"; break;
+                case "ao":   actionUrl = "../kanren/student_kaisu_list3_o.aspx"; targetName = "student_kaisu_list"; break;
+                case "f":    actionUrl = "../tehai/furikae_list.aspx";       targetName = "furikae_list"; break;
+                case "fcc":  actionUrl = "../callcenter/furikae_frame.aspx"; targetName = "furikae_list"; break;
+                case "t":    actionUrl = "../text/text_list_body.aspx";      targetName = "text_order"; break;
+                case "b":    actionUrl = "../tehai/student_tehai_list.aspx"; targetName = "student_tehai"; break;
+                case "g":    actionUrl = "../tehai/shido2_base_input.aspx";  targetName = "shido_base_input"; break;
+                case "gk":   actionUrl = "../tehai/shido2_base_input_k.aspx"; targetName = "shido_base_input"; break;
+                case "gh":   actionUrl = "../tehai/shido2_base_input_h.aspx"; targetName = "shido_base_input"; break;
+                case "gf":   actionUrl = "../tehai/shido2_base_input_f.aspx"; targetName = "shido_base_input"; break;
+                case "gn":   actionUrl = "../tehai/shido2_base_input_n.aspx"; targetName = "shido_base_input"; break;
+                case "z":    actionUrl = "../shingaku/student_shingaku_list.aspx"; targetName = "student_shingaku_list"; break;
+                case "s":    actionUrl = "../s/student_schedule_list.aspx";  targetName = "student_schedule"; break;
+                case "m":    actionUrl = "../k/student_moshikomi_list.aspx"; targetName = "student_moshikomi_list"; break;
+                case "sr":   actionUrl = "../t/teacher_research_input_select.aspx"; targetName = "teacher_research_input_select"; break;
+                case "te":   actionUrl = "../s/student_teian_list.aspx";     targetName = "student_teian_list"; break;
+                case "d":    actionUrl = "../u/student_seikyu_list.aspx";    targetName = "student_seikyu"; break;
+                case "k":    actionUrl = "../tehai/tehai_kanren_list.aspx";  targetName = "kanren_list"; break;
+                case "aa":   actionUrl = "../kanren/student_shido_kiroku_list.aspx"; targetName = "student_shido_kiroku_list"; break;
+                case "ab":   actionUrl = "../s/tangen_check.aspx";           targetName = "tangen_check"; break;
+                case "ac":   actionUrl = "../s/student_yearplan_list.aspx";  targetName = "student_yearplan_list"; break;
+                case "sp":   actionUrl = "../s/student_studyplan_list.aspx"; targetName = "student_studyplan_list"; break;
+                case "tl":   actionUrl = "../s/student_teacher_list.aspx";   targetName = "student_teacher_list"; break;
+                case "h":    actionUrl = "../u/student_henkin_list.aspx";    targetName = "student_henkin_list"; break;
+                case "ml":   actionUrl = "../s/student_mailaddress_input_init.aspx"; targetName = "student_mailaddress_input"; break;
+                case "io":   actionUrl = "../s/student_inout_list.aspx";     targetName = "student_inout_list"; break;
+                case "sm":   actionUrl = "../s/schedule_mail_input.aspx";    targetName = "schedule_mail_input"; break;
+                case "prof": actionUrl = "../s/student_profile_input.aspx";  targetName = "student_profile_input"; break;
+                case "if":   actionUrl = "../s/student_info_input.aspx";     targetName = "student_info_input"; break;
+                case "so":   actionUrl = "../u/student_seikyu_order_list.aspx"; targetName = "student_seikyu_order_list"; break;
+                case "gm":   actionUrl = "../u/student_kouza_gmo_input.aspx"; targetName = "student_kouza_gmo_input"; $formMenu.find('input[name="family_cd"]').val(studentCd); break;
+                case "to":   actionUrl = "../toiawase_input.aspx";           targetName = "toiawase_input"; break;
+                case "fa":   actionUrl = "../s/student_family_input.aspx";   targetName = "student_family_input"; break;
+                case "todo": actionUrl = "../todo/todo_list.aspx";           targetName = "todo_list"; $formMenu.find('input[name="user_cd"]').val(studentCd); break;
+                case "ai":   actionUrl = "../ai/student_ai_mokuhyo_input.aspx"; targetName = "student_ai_mokuhyo_input"; break;
+                case "apps": actionUrl = "../apps/mynetzs_info.aspx";        targetName = "mynetzs_info"; break;
+                case "code": actionUrl = "../s/mynetz_code.aspx";            targetName = "mynetz_code"; break;
+                case "tanto": actionUrl = "../s/student_tanto_input.aspx";   targetName = "student_tanto_list"; break;
+                case "kyo":  actionUrl = "../s/student_kyokasho_input.aspx"; targetName = "student_kyokasho_input"; break;
+                case "pdca": actionUrl = "../ai/pdca_input.aspx";            targetName = "pdca_input"; break;
+                
+                // アプリ連携（SSO・モバイルメニュー系）
+                case "sche": case "sei": case "aav": case "ict": case "dsa": case "k100m": case "sya": case "kyomu":
+                  actionUrl = "../sso/mobilenetzmenu.aspx";
+                  targetName = option.value + studentCd;
+                  $formMenu.find('#app_name').val("forlecturer");
+                  $formMenu.find('#page_kind').val("3");
+                  $formMenu.find('#method_name').val(
+                    option.value === "sche" ? "tsuujuku" :
+                    option.value === "sei" ? "seiseki" :
+                    option.value === "aav" ? "shidouhoukoku" :
+                    option.value === "ict" ? "ictcontents" :
+                    option.value === "dsa" ? "studyachivement" :
+                    option.value === "k100m" ? "kakomon100" :
+                    option.value === "sya" ? "shidouyotei" : "tannincheck"
+                  );
+                  break;
+              }
+
+              // 該当するメニュー定義があった場合のみ安全に送信を実行
+              if (actionUrl) {
+                $formMenu.attr('action', actionUrl);
+                $formMenu.attr('target', targetName);
+                $formMenu.find('input[name="student_cd"]').val(studentCd);
+                $formMenu[0].submit();
+              }
+            };
+            
+            container.appendChild(newBtn);
+          });
+
+          // 元の不要になったプルダウンと「開く」ボタンを画面から非表示にする 
+          selectEl.style.display = 'none';
+          btn.style.display = 'none';
+
+          // 新しく生成した綺麗に並んだボタン群を画面に流し込む 
+          btn.parentNode.insertBefore(container, btn);
+        }
+      }
+    });
+  }
+};
+
 // 以下はもう一つ globalFunction.jsとか別ファイルを作ってそっちにいれるほうがいいかな
 async function postData() {
   if (!endpoint) {

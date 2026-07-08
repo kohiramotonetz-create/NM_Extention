@@ -29,6 +29,10 @@ $(function () {
       console.log('yotei2_Running');
       FUNCTION.yotei2_codelist.appendDropdown();
       break;
+    case '/netz/netz1/s/student_renraku_list.aspx':
+      console.log('student_renraku_list_Buttons_Running');
+      FUNCTION.studentRenrakuButtons.init();
+      break;
 
     // =================================================================
     // パターンA: 【フレーム分離型画面】（生徒一覧・契約一覧・売上情報・入金情報など）
