@@ -964,6 +964,328 @@ FUNCTION.studentRenrakuButtons = {
   }
 };
 
+// ===================================================
+// 未手配表カスタム（別タブ投げっぱなし高速自動化方式）
+// ===================================================
+FUNCTION.tehaiList_custom = {
+  checkedIds: [],
+
+  appendCheckboxColumn: function() {
+    const _this = this;
+    const $table = $('table.tbl');
+    if ($table.length === 0) return;
+
+    _this.checkedIds = [];
+
+    // ヘッダー行の右端に列を追加
+    if ($table.find('tbody tr').first().find('.custom-header-cell').length === 0) {
+      $table.find('tbody tr').first().append($('<td>', { text: '選択', class: 'custom-header-cell', style: 'font-weight:bold; text-align:center;' }));
+    }
+
+    // 通常のデータ行にチェックボックスを追加 (id="td"で始まるtrを対象にする)
+    const $taskRows = $table.find('tbody tr[id^="td"]');
+    $taskRows.each(function() {
+      const $row = $(this);
+      const rowId = $row.attr('id').replace('td', '');
+
+      if ($row.find('.custom-tehai-selector').length > 0) return;
+
+      const $newTd = $('<td>', { style: 'text-align: center; vertical-align: middle;' });
+      const $checkbox = $('<input>', {
+        type: 'checkbox',
+        class: 'custom-tehai-selector',
+        data: { id: rowId },
+        css: { 'pointer': 'pointer', 'transform': 'scale(1.2)' }
+      });
+
+      $checkbox.on('change', function() {
+        const taskId = $(this).data('id');
+        if ($(this).prop('checked')) {
+          if (!_this.checkedIds.includes(taskId)) {
+            _this.checkedIds.push(taskId);
+          }
+        } else {
+          _this.checkedIds = _this.checkedIds.filter(id => id !== taskId);
+        }
+      });
+
+      $newTd.append($checkbox);
+      $row.append($newTd);
+    });
+
+    // 各種カスタムダイアログのスタイル注入
+    if ($('#custom-tehai-menu-style').length === 0) {
+      $('<style>', {
+        id: 'custom-tehai-menu-style',
+        text: `
+          #custom-tehai-context-menu { position: absolute; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 6px 0; z-index: 99999; min-width: 180px; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10pt; }
+          .tehai-menu-item { position: relative; padding: 8px 14px; cursor: pointer; color: #333; transition: background 0.2s; }
+          .tehai-menu-item:hover { background-color: #f0f4f9; }
+          .tehai-menu-item .arrow { float: right; font-size: 8pt; color: #888; margin-top: 2px; }
+          .tehai-submenu { display: none; position: absolute; left: 100%; top: -6px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 6px 0; min-width: 140px; }
+          .tehai-menu-item:hover > .tehai-submenu { display: block; }
+          
+          #custom-tehai-dialog-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100000; display: flex; align-items: center; justify-content: center; }
+          .custom-tehai-dialog { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 12px; width: 320px; font-family: sans-serif; font-size: 10pt; }
+          .custom-tehai-dialog h4 { margin: 0 0 5px 0; color: #333; font-size: 11pt; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+          .custom-tehai-dialog label { display: flex; flex-direction: column; gap: 4px; color: #666; }
+          .custom-tehai-dialog input[type="date"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 10pt; }
+          
+          .custom-subject-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
+          .custom-subject-label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #333 !important; flex-direction: row !important; }
+          .custom-subject-row input[type="checkbox"] { transform: scale(1.1); cursor: pointer; }
+          .custom-subject-row input[type="text"] { width: 45px; text-align: center; padding: 3px; border: 1px solid #ccc; border-radius: 4px; font-size: 9pt; }
+          .custom-subject-row input[type="text"]:disabled { background: #f5f5f5; color: #aaa; }
+          
+          .custom-tehai-btn-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 5px; }
+          .custom-tehai-btn { padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5; cursor: pointer; font-size: 9pt; }
+          .custom-tehai-btn.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+        `
+      }).appendTo('head');
+    }
+
+    // テーブル内での右クリックでオリジナルメニューを表示
+    $table.on('contextmenu', function(e) {
+      if (_this.checkedIds.length > 0) {
+        e.preventDefault();
+        $('#custom-tehai-context-menu').remove();
+
+        const $menu = $('<div>', { id: 'custom-tehai-context-menu' }).css({ 'top': e.pageY + 'px', 'left': e.pageX + 'px' });
+
+        // --- ① 状態変更レイヤー ---
+        const $itemJyotai = $('<div>', { class: 'tehai-menu-item', html: '⚙️ 状態変更 <span class="arrow">▶</span>' });
+        const $subJyotai = $('<div>', { class: 'tehai-submenu' });
+        [
+          ['未手配', '0'], ['自動処理', '2'], ['手配中', '1'], ['手配済', '5'], ['取消', '9']
+        ].forEach(j => {
+          $('<div>', { class: 'tehai-menu-item', text: j[0] }).on('click', function() {
+            _this.startAutomationLoop('change_status', j[1]);
+          }).appendTo($subJyotai);
+        });
+        $itemJyotai.append($subJyotai).appendTo($menu);
+
+        // --- ② 講習日時変更レイヤー ---
+        const $itemDate = $('<div>', { class: 'tehai-menu-item', html: '📅 講習日時設定 <span class="arrow">▶</span>' });
+        const $subDate = $('<div>', { class: 'tehai-submenu' });
+        $('<div>', { class: 'tehai-menu-item', text: '🗓️ カレンダーから選択' }).on('click', function() {
+          _this.openDateDialog();
+        }).appendTo($subDate);
+        $itemDate.append($subDate).appendTo($menu);
+
+        // --- ③ 指導科目レイヤー（複数選択可カスタムダイアログ起動） ---
+        const $itemKyoka = $('<div>', { class: 'tehai-menu-item', html: '📚 指導科目チェック <span class="arrow">▶</span>' });
+        const $subKyoka = $('<div>', { class: 'tehai-submenu' });
+        $('<div>', { class: 'tehai-menu-item', text: '📝 複数科目をまとめて指定' }).on('click', function() {
+          _this.openSubjectDialog();
+        }).appendTo($subKyoka);
+        $itemKyoka.append($subKyoka).appendTo($menu);
+
+        $('body').append($menu);
+      }
+    });
+
+    $(document).on('click.customTehaiMenuClose', function(e) {
+      if (!$(e.target).closest('#custom-tehai-context-menu').length) {
+        $('#custom-tehai-context-menu').remove();
+      }
+    });
+  },
+
+  // カレンダー付き日付入力ダイアログ
+  openDateDialog: function() {
+    const _this = this;
+    $('#custom-tehai-dialog-overlay').remove();
+
+    const $overlay = $('<div>', { id: 'custom-tehai-dialog-overlay' });
+    const $dialog = $('<div>', { class: 'custom-tehai-dialog' });
+
+    $dialog.append($('<h4>', { text: '講習日時の範囲指定' }));
+
+    const $labelFrom = $('<label>', { text: '開始日' }).append($('<input>', { type: 'date', id: 'c-date-from', value: '2026-03-01' }));
+    const $labelTo = $('<label>', { text: '終了日' }).append($('<input>', { type: 'date', id: 'c-date-to', value: '2026-03-31' }));
+
+    const $btnRow = $('<div>', { class: 'custom-tehai-btn-row' });
+    const $cancelBtn = $('<button>', { type: 'button', class: 'custom-tehai-btn', text: 'キャンセル' }).on('click', function() { $overlay.remove(); });
+    const $okBtn = $('<button>', { type: 'button', class: 'custom-tehai-btn primary', text: '適用する' }).on('click', function() {
+      let fromVal = $('#c-date-from').val();
+      let toVal = $('#c-date-to').val();
+
+      if (!fromVal || !toVal) {
+        alert('開始日と終了日の両方を指定してください。');
+        return;
+      }
+
+      fromVal = fromVal.replace(/-/g, '/');
+      toVal = toVal.replace(/-/g, '/');
+
+      $overlay.remove();
+      _this.startAutomationLoop('change_date', fromVal + ',' + toVal);
+    });
+
+    $btnRow.append($cancelBtn).append($okBtn);
+    $dialog.append($labelFrom).append($labelTo).append($btnRow);
+    $overlay.append($dialog).appendTo('body');
+  },
+
+  // 【新設】指導科目の複数選択＆回数入力ダイアログ
+  openSubjectDialog: function() {
+    const _this = this;
+    $('#custom-tehai-dialog-overlay').remove();
+
+    const $overlay = $('<div>', { id: 'custom-tehai-dialog-overlay' });
+    const $dialog = $('<div>', { class: 'custom-tehai-dialog', css: { 'width': '340px' } });
+
+    $dialog.append($('<h4>', { text: '指導科目の複数選択・回数指定' }));
+
+    const subjects = [
+      { id: 'kok', text: '国語' },
+      { id: 'sha', text: '社会' },
+      { id: 'sug', text: '数学' },
+      { id: 'rik', text: '理科' },
+      { id: 'eig', text: '英語' },
+      { id: 'etc', text: '未振分' }
+    ];
+
+    // 科目ごとの入力エリアを生成
+    subjects.forEach(s => {
+      const $row = $('<div>', { class: 'custom-subject-row' });
+      
+      const $label = $('<label>', { class: 'custom-subject-label' })
+        .append($('<input>', { type: 'checkbox', class: 'c-sub-chk', data: { id: s.id } }))
+        .append($('<span>', { text: s.text }));
+        
+      const $input = $('<input>', { type: 'text', class: 'c-sub-val', id: 'c-sub-val-' + s.id, disabled: true, placeholder: '回数', value: '2' });
+
+      // チェックボックスのON/OFFでテキストボックスの有効・無効を制御
+      $label.find('input').on('change', function() {
+        $input.prop('disabled', !$(this).prop('checked'));
+      });
+
+      $row.append($label).append($input);
+      $dialog.append($row);
+    });
+
+    const $btnRow = $('<div>', { class: 'custom-tehai-btn-row' });
+    const $cancelBtn = $('<button>', { type: 'button', class: 'custom-tehai-btn', text: 'キャンセル' }).on('click', function() { $overlay.remove(); });
+    const $okBtn = $('<button>', { type: 'button', class: 'custom-tehai-btn primary', text: '適用する' }).on('click', function() {
+      const selectedData = [];
+      
+      $dialog.find('.c-sub-chk:checked').each(function() {
+        const subId = $(this).data('id');
+        const countVal = $('#c-sub-val-' + subId).val() || '0';
+        selectedData.push(subId + ':' + countVal); // 例: "kok:2"
+      });
+
+      if (selectedData.length === 0) {
+        alert('少なくとも1つ以上の科目にチェックを入れてください。');
+        return;
+      }
+
+      $overlay.remove();
+      // パラメータをセミコロン区切りの文字列で引き渡す (例: "kok:2;sug:2;eig:2")
+      _this.startAutomationLoop('change_subject_multi', selectedData.join(';'));
+    });
+
+    $btnRow.append($cancelBtn).append($okBtn);
+    $dialog.append($btnRow);
+    $overlay.append($dialog).appendTo('body');
+  },
+
+  startAutomationLoop: function(action, value) {
+    const _this = this;
+    $('#custom-tehai-context-menu').remove();
+
+    if (_this.checkedIds.length === 0) return;
+
+    const queue = [..._this.checkedIds];
+    console.log('【手配自動化開始】対象件数: ' + queue.length + '件');
+
+    let index = 0;
+    const intervalId = setInterval(function() {
+      if (index >= queue.length) {
+        clearInterval(intervalId);
+        _this.checkedIds = [];
+        location.reload();
+        return;
+      }
+
+      const tehaiCd = queue[index];
+      const targetUrl = window.location.origin + 
+        '/netz/netz1/tehai/tehai_input.aspx?tehai_cd=' + tehaiCd + 
+        '&custom_action=' + action + 
+        '&custom_val=' + encodeURIComponent(value);
+
+      chrome.runtime.sendMessage({ openTabBack: targetUrl });
+      index++;
+    }, 300);
+  }
+};
+
+// ===================================================
+// 手配票入力画面カスタム（裏タブ自動書き換え・保存ロジック）
+// ===================================================
+FUNCTION.tehaiInput_custom = {
+  executeAutomation: function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('custom_action');
+    const val = urlParams.get('custom_val');
+
+    if (!action) return;
+
+    window.alert = function(msg) { console.log('【Alertスルー】:', msg); };
+    window.confirm = function(msg) { console.log('【Confirm自動承認】:', msg); return true; };
+
+    if (action === 'change_status') {
+      $('select[name="jyotai_cb"]').val(val).trigger('change');
+    } 
+    else if (action === 'change_date') {
+      const dates = val.split(',');
+      if (dates.length === 2) {
+        $('#koshu_from, input[name="koshu_from"]').val(dates[0]).trigger('change');
+        $('#koshu_to, input[name="koshu_to"]').val(dates[1]).trigger('change');
+      }
+    } 
+    // 複数科目のチェック＆回数代入の処理
+    else if (action === 'change_subject_multi') {
+      // データのパース (例: "kok:2;sug:2;eig:2" ➔ { kok: "2", sug: "2", eig: "2" })
+      const activeSubjects = {};
+      val.split(';').forEach(item => {
+        const parts = item.split(':');
+        if (parts.length === 2) {
+          activeSubjects[parts[0]] = parts[1];
+        }
+      });
+      
+      ['kok', 'sha', 'sug', 'rik', 'eig', 'etc'].forEach(sub => {
+        const $chk = $('#' + sub + ', input[name="shido_' + sub + '_flg"]');
+        const $inputVl = $('input[name="shido_' + sub + '_vl"]');
+        
+        if ($chk.length > 0) {
+          const isTarget = activeSubjects.hasOwnProperty(sub);
+          // 選択された科目はチェックON、選択されなかった科目はチェックOFF
+          $chk.prop('checked', isTarget).trigger('change');
+          
+          if ($inputVl.length > 0) {
+            // 対象科目の場合は指定された回数を代入、それ以外は空欄クリア
+            $inputVl.val(isTarget ? activeSubjects[sub] : '').trigger('change');
+          }
+        }
+      });
+    }
+
+    setTimeout(function() {
+      const $submitBtn = $('input[name="b_submit"], input[value=" 登録 "]');
+      if ($submitBtn.length > 0) {
+        if (typeof form_submit === 'function') {
+          form_submit();
+        } else {
+          $submitBtn.trigger('click');
+        }
+      }
+    }, 500);
+  }
+};
+
 // 以下はもう一つ globalFunction.jsとか別ファイルを作ってそっちにいれるほうがいいかな
 async function postData() {
   if (!endpoint) {

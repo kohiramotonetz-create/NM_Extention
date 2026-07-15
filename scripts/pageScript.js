@@ -47,6 +47,7 @@ $(function () {
     case '/netz/netz1/toiawase_list_head.aspx':  // 問合せ情報[cite: 3]
     case '/netz/netz1/k/keiyaku_list_head.aspx':   // 契約一覧[cite: 3]
     case '/netz/netz1/k/kaiyaku_list_head.aspx':   // 解約情報[cite: 3]
+    case '/netz/netz1/tehai/tehai_list_head.aspx':   // 手配表
     case '/netz/netz1/moshi/moshi_list_head.aspx':  // 模試受験者情報[cite: 3]
       console.log('Frame_Type_Page_Running_at: ' + location.pathname);
       
@@ -199,6 +200,27 @@ $(function () {
     case '/netz/netz1/todo/todo_input.aspx':
       console.log('todo_input_Running');
       FUNCTION.todoInput_custom.executeAutomation();
+      break;
+
+    // ------------ 未手配一覧画面カスタム ------------
+    case '/netz/netz1/tehai/tehai_list_body.aspx':
+      console.log('tehai_list_body_Running');
+      FUNCTION.tehaiList_custom.appendCheckboxColumn();
+      break;
+
+    // ------------ 手配票入力画面（裏画面自動操作用） ------------
+    case '/netz/netz1/tehai/tehai_input.aspx':
+      console.log('tehai_input_Running');
+      FUNCTION.tehaiInput_custom.executeAutomation();
+      break;
+
+    // ------------ 手配票保存完了画面（自動クローズ用） ------------
+    case '/netz/netz1/tehai/tehai_input_save.aspx':
+      console.log('tehai_input_save_Running');
+      // 画面が開いた瞬間に、拡張機能のバックグラウンドへ自分（このタブ）を閉じるよう要求メッセージを送る
+      setTimeout(function() {
+        chrome.runtime.sendMessage({ closeActiveTab: true });
+      }, 100);
       break;
 
     // ------------ ページ別機能の実装 ------------
